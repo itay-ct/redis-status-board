@@ -1,13 +1,28 @@
 {
   "name": "redis-status-board",
   "version": "1.0.0",
+  "description": "Real-time team status dashboard with Redis pub/sub and Server-Sent Events",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
+  "keywords": [
+    "redis",
+    "status-board",
+    "real-time",
+    "sse",
+    "pubsub",
+    "dashboard"
+  ],
+  "author": "",
+  "license": "MIT",
   "dependencies": {
     "express": "^4.19.0",
     "redis": "^4.6.13",
     "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
