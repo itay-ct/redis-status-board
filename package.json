@@ -1,0 +1,13 @@
+{
+  "name": "redis-status-board",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "redis": "^4.6.13",
+    "cors": "^2.8.5"
+  }
+}

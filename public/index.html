@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redis Status Board</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      background: #2d2d2d;
+      border-bottom: 1px solid #404040;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .top-bar h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #fff;
+      margin-right: auto;
+    }
+
+    .connection-form {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+      max-width: 800px;
+    }
+
+    .connection-form input {
+      background: #1a1a1a;
+      border: 1px solid #404040;
+      color: #e0e0e0;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .connection-form input:focus {
+      border-color: #0066cc;
+    }
+
+    .connection-form input::placeholder {
+      color: #666;
+    }
+
+    #url { flex: 2; min-width: 200px; }
+    #username { flex: 1; min-width: 100px; }
+
+    .password-wrapper {
+      flex: 1;
+      min-width: 100px;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .password-wrapper input {
+      width: 100%;
+      padding-right: 2.5rem;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 0.5rem;
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+
+    .password-toggle:hover {
+      color: #999;
+      background: transparent;
+    }
+
+    .password-toggle svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    button {
+      background: #0066cc;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-weight: 500;
+    }
+
+    button:hover {
+      background: #0052a3;
+    }
+
+    button:active {
+      background: #004080;
+    }
+
+    .btn-secondary {
+      background: #404040;
+    }
+
+    .btn-secondary:hover {
+      background: #4d4d4d;
+    }
+
+    .logout-btn {
+      background: transparent;
+      color: #999;
+      border: 1px solid #404040;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.8rem;
+      margin-left: auto;
+    }
+
+    .logout-btn:hover {
+      background: #333;
+      color: #ccc;
+      border-color: #555;
+    }
+
+    .logout-btn:active {
+      background: #2a2a2a;
+    }
+
+    /* Notification Popup */
+    .notification-popup {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #2d2d2d;
+      border: 1px solid #4CAF50;
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      max-width: 400px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      animation: slideIn 0.3s ease-out;
+      z-index: 1000;
+    }
+
+    .notification-popup.hiding {
+      animation: slideOut 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(450px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(450px);
+        opacity: 0;
+      }
+    }
+
+    .notification-popup .message {
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    /* User Status Bar */
+    .user-status-bar {
+      background: #252525;
+      border-bottom: 1px solid #404040;
+      padding: 0.75rem 1.5rem;
+      display: none;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .user-status-bar.visible {
+      display: flex;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-right: auto;
+    }
+
+    .user-info .username {
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .status-selector {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-selector label {
+      font-size: 0.875rem;
+      color: #999;
+    }
+
+    .status-selector select {
+      background: #1a1a1a;
+      border: 1px solid #404040;
+      color: #e0e0e0;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .status-selector select:focus {
+      border-color: #0066cc;
+    }
+
+    .status-selector input {
+      background: #1a1a1a;
+      border: 1px solid #404040;
+      color: #e0e0e0;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      outline: none;
+      min-width: 200px;
+    }
+
+    .status-selector input:focus {
+      border-color: #0066cc;
+    }
+
+    .status-selector input::placeholder {
+      color: #666;
+    }
+
+    /* Main Content */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .users-section {
+      display: none;
+    }
+
+    .users-section.visible {
+      display: block;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .section-header h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #2d2d2d;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    thead {
+      background: #252525;
+    }
+
+    th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid #404040;
+      font-size: 0.875rem;
+    }
+
+    tbody tr {
+      transition: background 0.2s;
+    }
+
+    tbody tr:hover {
+      background: #333;
+    }
+
+    /* Status Colors */
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-red .status-dot { background: #ef4444; }
+    .status-green .status-dot { background: #10b981; }
+    .status-purple .status-dot { background: #a855f7; }
+
+    .status-red { color: #ef4444; }
+    .status-green { color: #10b981; }
+    .status-purple { color: #a855f7; }
+
+    /* Error Message */
+    .error-message {
+      background: #7f1d1d;
+      color: #fca5a5;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    .error-message.visible {
+      display: block;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #666;
+    }
+
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Bar with Connection Form -->
+  <div class="top-bar" id="topBar">
+    <h1>🔴 Redis Status Board</h1>
+    <div class="connection-form" id="connectionForm">
+      <input id="url" placeholder="redis://host:port or just host:port" type="text">
+      <input id="username" placeholder="username" type="text">
+      <div class="password-wrapper">
+        <input id="password" placeholder="password" type="password">
+        <button type="button" class="password-toggle" id="passwordToggle" title="Show password">
+          <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+          <svg id="eyeOffIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+          </svg>
+        </button>
+      </div>
+      <button id="connectBtn">Connect</button>
+    </div>
+    <button class="logout-btn" id="logoutBtn" style="display: none;">Log out</button>
+  </div>
+
+  <!-- User Status Bar (shown after connection) -->
+  <div class="user-status-bar" id="userStatusBar">
+    <div class="user-info">
+      <span>Logged in as:</span>
+      <span class="username" id="currentUser"></span>
+    </div>
+    <div class="status-selector">
+      <label for="myStatus">Your status:</label>
+      <select id="myStatus">
+        <option value="red">🔴 Busy</option>
+        <option value="green">🟢 Available</option>
+        <option value="purple">🟣 Away</option>
+      </select>
+      <input type="text" id="statusMessage" placeholder="What are you working on?" maxlength="100">
+      <button id="updateStatusBtn">Update</button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div class="container">
+    <div class="error-message" id="error"></div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container">
+    <div class="users-section" id="usersSection">
+      <div class="section-header">
+        <h2>Team Status</h2>
+        <button class="btn-secondary" id="refreshBtn">🔄 Refresh</button>
+      </div>
+      <table id="usersTable">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Status</th>
+            <th>Message</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const connectBtn = document.getElementById('connectBtn');
+    const urlInput = document.getElementById('url');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const passwordToggle = document.getElementById('passwordToggle');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const eyeOffIcon = document.getElementById('eyeOffIcon');
+    const errorDiv = document.getElementById('error');
+    const userStatusBar = document.getElementById('userStatusBar');
+    const usersSection = document.getElementById('usersSection');
+    const currentUserSpan = document.getElementById('currentUser');
+    const myStatusSelect = document.getElementById('myStatus');
+    const statusMessageInput = document.getElementById('statusMessage');
+    const updateStatusBtn = document.getElementById('updateStatusBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const usersTableBody = document.querySelector('#usersTable tbody');
+    const connectionForm = document.getElementById('connectionForm');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    let conn = {
+      url: null,
+      username: null,
+      password: null
+    };
+
+    const STORAGE_KEY = 'redisStatusBoard_credentials';
+    let eventSource = null;
+
+    // ============================================================================
+    // CREDENTIAL STORAGE (localStorage)
+    // ============================================================================
+
+    function saveCredentials(url, username, password) {
+      const credentials = { url, username, password };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(credentials));
+    }
+
+    function loadCredentials() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    function clearCredentials() {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
+    // ============================================================================
+    // NOTIFICATION POPUP
+    // ============================================================================
+
+    function showNotification(message) {
+      // Remove existing notification if any
+      const existing = document.querySelector('.notification-popup');
+      if (existing) {
+        existing.remove();
+      }
+
+      // Create notification
+      const notification = document.createElement('div');
+      notification.className = 'notification-popup';
+      notification.innerHTML = `<div class="message">${message}</div>`;
+      document.body.appendChild(notification);
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        notification.classList.add('hiding');
+        setTimeout(() => notification.remove(), 300);
+      }, 5000);
+    }
+
+    // ============================================================================
+    // SERVER-SENT EVENTS (SSE)
+    // ============================================================================
+
+    function connectSSE() {
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      eventSource = new EventSource('/api/updates');
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('[SSE] Received:', data);
+
+        if (data.type === 'update') {
+          showNotification(data.message);
+          refreshUsers();
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error('[SSE] Error:', err);
+      };
+
+      console.log('[SSE] Connected to updates stream');
+    }
+
+    function disconnectSSE() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+        console.log('[SSE] Disconnected from updates stream');
+      }
+    }
+
+    // ============================================================================
+    // UI STATE MANAGEMENT
+    // ============================================================================
+
+    function showLoggedInState() {
+      connectionForm.style.display = 'none';
+      logoutBtn.style.display = 'block';
+      userStatusBar.classList.add('visible');
+      usersSection.classList.add('visible');
+      connectSSE();
+    }
+
+    function showLoggedOutState() {
+      connectionForm.style.display = 'flex';
+      logoutBtn.style.display = 'none';
+      userStatusBar.classList.remove('visible');
+      usersSection.classList.remove('visible');
+      usersTableBody.innerHTML = '';
+      currentUserSpan.textContent = '';
+      statusMessageInput.value = '';
+      myStatusSelect.value = 'green';
+      disconnectSSE();
+    }
+
+    function logout() {
+      clearCredentials();
+      conn = { url: null, username: null, password: null };
+      showLoggedOutState();
+      showError('');
+    }
+
+    // ============================================================================
+    // EVENT LISTENERS
+    // ============================================================================
+
+    // Password visibility toggle
+    passwordToggle.addEventListener('click', () => {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      eyeIcon.style.display = isPassword ? 'none' : 'block';
+      eyeOffIcon.style.display = isPassword ? 'block' : 'none';
+      passwordToggle.title = isPassword ? 'Hide password' : 'Show password';
+    });
+
+    // Logout button
+    logoutBtn.addEventListener('click', logout);
+
+    // Normalize Redis URL
+    function normalizeRedisUrl(url) {
+      url = url.trim();
+      // If it doesn't start with redis://, add it
+      if (!url.startsWith('redis://') && !url.startsWith('rediss://')) {
+        url = 'redis://' + url;
+      }
+      return url;
+    }
+
+    function showError(msg) {
+      if (msg) {
+        errorDiv.textContent = msg;
+        errorDiv.classList.add('visible');
+      } else {
+        errorDiv.textContent = '';
+        errorDiv.classList.remove('visible');
+      }
+    }
+
+    async function postJSON(path, body) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Request failed');
+      }
+      return data;
+    }
+
+    async function connect(autoLogin = false) {
+      showError('');
+
+      const rawUrl = urlInput.value.trim();
+      const normalizedUrl = normalizeRedisUrl(rawUrl);
+
+      conn = {
+        url: normalizedUrl,
+        username: usernameInput.value.trim(),
+        password: passwordInput.value
+      };
+
+      if (!rawUrl || !conn.username || !conn.password) {
+        if (!autoLogin) {
+          showError('Please fill in all fields.');
+        }
+        return;
+      }
+
+      try {
+        if (!autoLogin) {
+          connectBtn.textContent = 'Connecting...';
+          connectBtn.disabled = true;
+        }
+
+        const result = await postJSON('/api/connect-test', {
+          url: conn.url,
+          username: conn.username,
+          password: conn.password
+        });
+
+        // Save credentials on successful connection
+        saveCredentials(conn.url, conn.username, conn.password);
+
+        currentUserSpan.textContent = conn.username;
+
+        // Populate current status from Redis
+        if (result.currentStatus) {
+          myStatusSelect.value = result.currentStatus.status || 'green';
+          statusMessageInput.value = result.currentStatus.message || '';
+        }
+
+        showLoggedInState();
+
+        await refreshUsers();
+
+        if (!autoLogin) {
+          connectBtn.textContent = 'Connected ✓';
+          setTimeout(() => {
+            connectBtn.textContent = 'Connect';
+            connectBtn.disabled = false;
+          }, 2000);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!autoLogin) {
+          showError('Connection failed: ' + err.message);
+          connectBtn.textContent = 'Connect';
+          connectBtn.disabled = false;
+        } else {
+          // Auto-login failed, clear invalid credentials
+          clearCredentials();
+        }
+      }
+    }
+
+    function getStatusEmoji(status) {
+      switch(status) {
+        case 'red': return '🔴';
+        case 'green': return '🟢';
+        case 'purple': return '🟣';
+        default: return '⚪';
+      }
+    }
+
+    function getStatusText(status) {
+      switch(status) {
+        case 'red': return 'Busy';
+        case 'green': return 'Available';
+        case 'purple': return 'Away';
+        default: return 'Unknown';
+      }
+    }
+
+    async function refreshUsers() {
+      try {
+        const data = await postJSON('/api/list-users', {
+          url: conn.url,
+          username: conn.username,
+          password: conn.password
+        });
+
+        usersTableBody.innerHTML = '';
+
+        if (data.users.length === 0) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 3;
+          td.style.textAlign = 'center';
+          td.style.color = '#666';
+          td.style.padding = '2rem';
+          td.textContent = 'No users found';
+          tr.appendChild(td);
+          usersTableBody.appendChild(tr);
+          return;
+        }
+
+        data.users.forEach(user => {
+          const tr = document.createElement('tr');
+
+          // Username column
+          const tdUser = document.createElement('td');
+          tdUser.textContent = user.username;
+          tdUser.style.fontWeight = '500';
+          tr.appendChild(tdUser);
+
+          // Status column
+          const tdStatus = document.createElement('td');
+          const statusDiv = document.createElement('div');
+          statusDiv.className = 'status-indicator status-' + user.status;
+          statusDiv.innerHTML = `<span class="status-dot"></span><span>${getStatusEmoji(user.status)} ${getStatusText(user.status)}</span>`;
+          tdStatus.appendChild(statusDiv);
+          tr.appendChild(tdStatus);
+
+          // Message column
+          const tdMessage = document.createElement('td');
+          tdMessage.textContent = user.message || '—';
+          tdMessage.style.color = user.message ? '#ccc' : '#666';
+          tr.appendChild(tdMessage);
+
+          usersTableBody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error(err);
+        showError('Failed to load users: ' + err.message);
+      }
+    }
+
+    async function updateMyStatus() {
+      try {
+        updateStatusBtn.textContent = 'Updating...';
+        updateStatusBtn.disabled = true;
+
+        await postJSON('/api/update-status', {
+          url: conn.url,
+          username: conn.username,
+          password: conn.password,
+          myUsername: conn.username,
+          status: myStatusSelect.value,
+          message: statusMessageInput.value.trim()
+        });
+
+        await refreshUsers();
+
+        updateStatusBtn.textContent = 'Updated ✓';
+        setTimeout(() => {
+          updateStatusBtn.textContent = 'Update';
+          updateStatusBtn.disabled = false;
+        }, 1500);
+      } catch (err) {
+        console.error(err);
+        showError('Failed to update status: ' + err.message);
+        updateStatusBtn.textContent = 'Update';
+        updateStatusBtn.disabled = false;
+      }
+    }
+
+    // Auto-update status when selection changes
+    myStatusSelect.addEventListener('change', updateMyStatus);
+
+    // Update on Enter key in message input
+    statusMessageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        updateMyStatus();
+      }
+    });
+
+    // Enter key support
+    [urlInput, usernameInput, passwordInput].forEach(input => {
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          connect();
+        }
+      });
+    });
+
+    connectBtn.addEventListener('click', () => connect(false));
+    refreshBtn.addEventListener('click', refreshUsers);
+    updateStatusBtn.addEventListener('click', updateMyStatus);
+
+    // ============================================================================
+    // AUTO-LOGIN ON PAGE LOAD
+    // ============================================================================
+
+    (function autoLogin() {
+      const credentials = loadCredentials();
+      if (credentials) {
+        // Populate form fields
+        urlInput.value = credentials.url;
+        usernameInput.value = credentials.username;
+        passwordInput.value = credentials.password;
+
+        // Attempt auto-login
+        connect(true);
+      }
+    })();
+  </script>
+</body>
+</html>
