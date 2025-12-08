@@ -4,6 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Redis Status Board</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""/>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""></script>
+
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -277,6 +288,32 @@
       padding: 2rem 1.5rem;
     }
 
+    /* Main Layout - Split View */
+    .main-layout {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      height: calc(100vh - 140px);
+      padding: 1.5rem;
+    }
+
+    .main-layout.visible {
+      display: grid;
+    }
+
+    .left-panel {
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .right-panel {
+      position: relative;
+      overflow: hidden;
+      background: #2d2d2d;
+      border-radius: 8px;
+      border: 1px solid #404040;
+    }
+
     .users-section {
       display: none;
     }
@@ -385,6 +422,83 @@
       margin-bottom: 1rem;
       opacity: 0.5;
     }
+
+    /* Map Styles */
+    .map-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #2d2d2d;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .map-container.pin-mode #map {
+      cursor: crosshair !important;
+    }
+
+    /* Custom Leaflet marker styles */
+    .custom-marker-icon {
+      background: transparent;
+      border: none;
+    }
+
+    .marker-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      /* No transform - positioning handled by iconAnchor */
+    }
+
+    .marker-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #2d2d2d;
+      border: 2px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .marker-circle svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .marker-label {
+      margin-top: 4px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .update-location-btn {
+      background: #6c3fb5;
+      margin-left: 0.5rem;
+    }
+
+    .update-location-btn:hover {
+      background: #5a3399;
+    }
+
+    .update-location-btn.active {
+      background: #ff6b35;
+    }
+
+    .update-location-btn.active:hover {
+      background: #e55a2b;
+    }
   </style>
 </head>
 <body>
@@ -426,6 +540,7 @@
       </select>
       <input type="text" id="statusMessage" placeholder="What are you working on?" maxlength="100">
       <button id="updateStatusBtn">Update</button>
+      <button class="update-location-btn" id="updateLocationBtn" title="Update location on map">📍 Location</button>
     </div>
   </div>
 
@@ -434,23 +549,33 @@
     <div class="error-message" id="error"></div>
   </div>
 
-  <!-- Main Content -->
-  <div class="container">
-    <div class="users-section" id="usersSection">
-      <div class="section-header">
-        <h2>Team Status</h2>
-        <button class="btn-secondary" id="refreshBtn">🔄 Refresh</button>
+  <!-- Main Layout - Split View -->
+  <div class="main-layout" id="mainLayout">
+    <!-- Left Panel - User List -->
+    <div class="left-panel">
+      <div class="users-section visible">
+        <div class="section-header">
+          <h2>Team Status</h2>
+          <button class="btn-secondary" id="refreshBtn">🔄 Refresh</button>
+        </div>
+        <table id="usersTable">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Status</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
       </div>
-      <table id="usersTable">
-        <thead>
-          <tr>
-            <th>Username</th>
-            <th>Status</th>
-            <th>Message</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    </div>
+
+    <!-- Right Panel - Map -->
+    <div class="right-panel">
+      <div class="map-container" id="mapContainer">
+        <div id="map"></div>
+      </div>
     </div>
   </div>
 
@@ -473,6 +598,9 @@
     const usersTableBody = document.querySelector('#usersTable tbody');
     const connectionForm = document.getElementById('connectionForm');
     const logoutBtn = document.getElementById('logoutBtn');
+    const mainLayout = document.getElementById('mainLayout');
+    const updateLocationBtn = document.getElementById('updateLocationBtn');
+    const mapContainer = document.getElementById('mapContainer');
 
     let conn = {
       url: null,
@@ -482,6 +610,74 @@
 
     const STORAGE_KEY = 'redisStatusBoard_credentials';
     let eventSource = null;
+    let pinMode = false;
+    let pendingLocation = null;
+    let map = null;
+    let userMarkers = {}; // Store markers by username
+
+    // ============================================================================
+    // MAP INITIALIZATION
+    // ============================================================================
+
+    function initializeMap() {
+      console.log('[initializeMap] Initializing Leaflet map');
+
+      // Israel bounds: approximately 29.5°N to 33.3°N, 34.2°E to 35.9°E
+      const israelCenter = [31.5, 35.0]; // Center of Israel
+      const israelBounds = [
+        [29.5, 34.2], // Southwest
+        [33.3, 35.9]  // Northeast
+      ];
+
+      // Initialize map
+      map = L.map('map', {
+        center: israelCenter,
+        zoom: 8,
+        minZoom: 7,
+        maxZoom: 10,
+        maxBounds: israelBounds,
+        maxBoundsViscosity: 1.0,
+        zoomControl: false,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        touchZoom: false
+      });
+
+      // Add OpenStreetMap tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      // Handle map clicks for location pinning
+      map.on('click', (e) => {
+        console.log(`[map.click] Click detected, pinMode=${pinMode}`);
+        console.log(`[map.click] Coordinates: ${e.latlng.lat}, ${e.latlng.lng}`);
+
+        if (!pinMode) {
+          console.log('[map.click] Not in pin mode, ignoring click');
+          return;
+        }
+
+        pendingLocation = {
+          latitude: e.latlng.lat,
+          longitude: e.latlng.lng
+        };
+        console.log('[map.click] Pending location set:', pendingLocation);
+
+        pinMode = false;
+        mapContainer.classList.remove('pin-mode');
+        updateLocationBtn.classList.remove('active');
+        updateLocationBtn.textContent = '📍 Location';
+
+        updateMyStatusWithLocation();
+      });
+
+      console.log('[initializeMap] Map initialized successfully');
+    }
 
     // ============================================================================
     // CREDENTIAL STORAGE (localStorage)
@@ -576,7 +772,13 @@
       connectionForm.style.display = 'none';
       logoutBtn.style.display = 'block';
       userStatusBar.classList.add('visible');
-      usersSection.classList.add('visible');
+      mainLayout.classList.add('visible');
+
+      // Initialize map if not already initialized
+      if (!map) {
+        initializeMap();
+      }
+
       connectSSE();
     }
 
@@ -584,8 +786,9 @@
       connectionForm.style.display = 'flex';
       logoutBtn.style.display = 'none';
       userStatusBar.classList.remove('visible');
-      usersSection.classList.remove('visible');
+      mainLayout.classList.remove('visible');
       usersTableBody.innerHTML = '';
+      clearMapMarkers();
       currentUserSpan.textContent = '';
       statusMessageInput.value = '';
       myStatusSelect.value = 'green';
@@ -734,6 +937,7 @@
 
     async function refreshUsers() {
       try {
+        // Fetch user list (without locations)
         const data = await postJSON('/api/list-users', {
           url: conn.url,
           username: conn.username,
@@ -804,9 +1008,185 @@
 
           usersTableBody.appendChild(tr);
         });
+
+        // Fetch users with locations for map (separate call)
+        await refreshMapMarkers();
       } catch (err) {
         console.error(err);
         showError('Failed to load users: ' + err.message);
+      }
+    }
+
+    async function refreshMapMarkers() {
+      try {
+        console.log('[refreshMapMarkers] Fetching users with locations');
+
+        clearMapMarkers();
+
+        const data = await postJSON('/api/users-on-map', {
+          url: conn.url,
+          username: conn.username,
+          password: conn.password
+        });
+
+        console.log(`[refreshMapMarkers] Received ${data.users.length} users with locations`);
+
+        data.users.forEach(user => {
+          if (user.longitude && user.latitude) {
+            addMapMarker(user);
+          }
+        });
+      } catch (err) {
+        // Silently ignore "No such index" error (expected before index is created)
+        if (err.message && err.message.includes('No such index')) {
+          console.log('[refreshMapMarkers] Index not created yet - this is expected on first run');
+          return;
+        }
+
+        console.error('[refreshMapMarkers] Error:', err);
+        // Don't show error to user - map markers are optional
+      }
+    }
+
+    // ============================================================================
+    // MAP FUNCTIONS
+    // ============================================================================
+
+    function addMapMarker(user) {
+      if (!map) {
+        console.log('[addMapMarker] Map not initialized yet');
+        return;
+      }
+
+      if (!user.longitude || !user.latitude) {
+        console.log(`[addMapMarker] User ${user.username} has no location`);
+        return;
+      }
+
+      console.log(`[addMapMarker] Adding marker for ${user.username} at ${user.latitude}, ${user.longitude}`);
+
+      // Remove existing marker if any
+      if (userMarkers[user.username]) {
+        map.removeLayer(userMarkers[user.username]);
+      }
+
+      // Create custom marker HTML
+      const markerHtml = `
+        <div class="marker-content">
+          <div class="marker-circle">
+            <i data-lucide="${user.icon || 'circle'}"></i>
+          </div>
+          <div class="marker-label">${user.username}</div>
+        </div>
+      `;
+
+      // Create custom icon
+      // iconAnchor points to the center of the circle (20px from left, 20px from top)
+      // This makes the circle center exactly on the clicked location
+      const customIcon = L.divIcon({
+        html: markerHtml,
+        className: 'custom-marker-icon',
+        iconSize: [40, 60],
+        iconAnchor: [20, 20]  // Center of the 40px circle
+      });
+
+      // Create marker
+      const marker = L.marker([user.latitude, user.longitude], {
+        icon: customIcon
+      }).addTo(map);
+
+      // Add popup with message
+      if (user.message) {
+        marker.bindPopup(`<strong>${user.username}</strong><br>${user.message}`);
+      }
+
+      // Store marker reference
+      userMarkers[user.username] = marker;
+
+      // Initialize Lucide icons
+      setTimeout(() => lucide.createIcons(), 0);
+    }
+
+    function clearMapMarkers() {
+      console.log('[clearMapMarkers] Clearing all markers');
+      Object.values(userMarkers).forEach(marker => {
+        if (map) {
+          map.removeLayer(marker);
+        }
+      });
+      userMarkers = {};
+    }
+
+    function togglePinMode() {
+      pinMode = !pinMode;
+      console.log(`[togglePinMode] Pin mode: ${pinMode}`);
+
+      if (pinMode) {
+        mapContainer.classList.add('pin-mode');
+        updateLocationBtn.classList.add('active');
+        updateLocationBtn.textContent = '📍 Click Map';
+        console.log('[togglePinMode] Map is now in pin mode - click to set location');
+      } else {
+        mapContainer.classList.remove('pin-mode');
+        updateLocationBtn.classList.remove('active');
+        updateLocationBtn.textContent = '📍 Location';
+        // Don't clear pendingLocation here - it will be cleared after update
+        console.log('[togglePinMode] Exited pin mode (pendingLocation preserved)');
+      }
+    }
+
+    // Map click handler is now in initializeMap() function
+
+    // Update location button
+    updateLocationBtn.addEventListener('click', () => {
+      console.log('[updateLocationBtn.click] Location button clicked');
+      togglePinMode();
+    });
+
+    async function updateMyStatusWithLocation() {
+      console.log('[updateMyStatusWithLocation] Called with pendingLocation:', pendingLocation);
+
+      if (!pendingLocation) {
+        console.log('[updateMyStatusWithLocation] No pending location, aborting');
+        return;
+      }
+
+      try {
+        updateStatusBtn.textContent = 'Updating...';
+        updateStatusBtn.disabled = true;
+
+        const payload = {
+          url: conn.url,
+          username: conn.username,
+          password: conn.password,
+          myUsername: conn.username,
+          status: myStatusSelect.value,
+          message: statusMessageInput.value.trim(),
+          longitude: pendingLocation.longitude,
+          latitude: pendingLocation.latitude
+        };
+
+        console.log('[updateMyStatusWithLocation] Sending payload:', payload);
+
+        const response = await postJSON('/api/update-status', payload);
+        console.log('[updateMyStatusWithLocation] Response:', response);
+
+        pendingLocation = null;
+        console.log('[updateMyStatusWithLocation] Cleared pending location');
+
+        await refreshUsers();
+        console.log('[updateMyStatusWithLocation] Refreshed users');
+
+        updateStatusBtn.textContent = 'Updated ✓';
+        setTimeout(() => {
+          updateStatusBtn.textContent = 'Update';
+          updateStatusBtn.disabled = false;
+        }, 1500);
+      } catch (err) {
+        console.error('[updateMyStatusWithLocation] ERROR:', err);
+        showError('Failed to update status: ' + err.message);
+        updateStatusBtn.textContent = 'Update';
+        updateStatusBtn.disabled = false;
       }
     }
 

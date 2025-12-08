@@ -14,17 +14,18 @@ A real-time team status dashboard built with Node.js, Express, and Redis. Team m
 
 ## 🏗️ Architecture
 
-### Key Pattern: `{prefix}:status:{username}`
+### Key Pattern: `status:{prefix}:{username}`
 
-- User `redisboard-a` → Key: `a:status:redisboard-a`
-- User `redisboard-b` → Key: `b:status:redisboard-b`
+- User `redisboard-a` → Key: `status:a:redisboard-a`
+- User `redisboard-b` → Key: `status:b:redisboard-b`
 
 ### Data Structure (Redis Hash)
 
 ```
-HGETALL a:status:redisboard-a
+HGETALL status:a:redisboard-a
 status: "green"
 message: "Working on feature X"
+location: "34.7818,32.0853"
 ```
 
 ### Clean Separation of Concerns
@@ -57,11 +58,11 @@ The app will be available at `http://localhost:3000`
 Configure Redis users with appropriate permissions:
 
 ```bash
-# User A - can read all statuses, write only to a:* namespace
-ACL SETUSER redisboard-a on >password +@read +@write +@connection -@dangerous %R~*:status:* %W~a:*
+# User A - can read all statuses, write to status:a:* and a:* (for icons)
+ACL SETUSER redisboard-a on >password +@read +@write +@connection -@dangerous %R~status:* %W~status:a:* %W~a:*
 
-# User B - can read all statuses, write only to b:* namespace
-ACL SETUSER redisboard-b on >password +@read +@write +@connection -@dangerous %R~*:status:* %W~b:*
+# User B - can read all statuses, write to status:b:* and b:* (for icons)
+ACL SETUSER redisboard-b on >password +@read +@write +@connection -@dangerous %R~status:* %W~status:b:* %W~b:*
 ```
 
 ## 📡 API Endpoints

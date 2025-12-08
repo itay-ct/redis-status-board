@@ -121,34 +121,24 @@ function getStatusText(status) {
 
 /**
  * Generate Redis key for a user status.
- * Pattern: {prefix}:status:{username}
- * Example: a:status:redisboard-a
+ * Pattern: status:{prefix}:{username}
+ * Example: status:a:redisboard-a
  */
 function getUserKey(username, prefix) {
-  return `${prefix}:status:${username}`;
+  return `status:${prefix}:${username}`;
 }
 
 /**
- * Parse username from Redis key.
- * Example: a:status:redisboard-a -> redisboard-a
- */
-function parseUsernameFromKey(key) {
-  const parts = key.split(':');
-  return parts.slice(2).join(':'); // Skip prefix and 'status', handle usernames with colons
-}
-
-/**
- * Get all user statuses from Redis.
- * Returns array of user objects: { username, status, message }
- * Scans all prefixes: a:status:*, b:status:*, etc.
+ * Get all user statuses from Redis using SCAN.
+ * Returns array of user objects: { username, status, message, icon }
+ * Does NOT include location data - use getUsersOnMap() for that.
  */
 async function getAllUsers(client) {
-  const results = await redis.scanKeys(client, '*:status:*');
-
+  const results = await redis.scanKeys(client, 'status:*');
   return results.map(item => {
-    const username = parseUsernameFromKey(item.key);
+    const parts = item.key.split(':');
+    const username = parts.slice(2).join(':');
     const data = item.value || {};
-
     return {
       username,
       status: data.status || 'green',
@@ -156,6 +146,22 @@ async function getAllUsers(client) {
       icon: data.icon || 'circle'
     };
   });
+}
+
+/**
+ * Get users with locations within Israel using native Redis GEOSHAPE query.
+ * All filtering is done at the database level using WKT polygon.
+ */
+async function getUsersOnMap(client) {
+  try {
+    const statuses = await redis.searchStatusesWithLocation(client, 'status_index');
+    return statuses.filter(s => s.longitude && s.latitude);
+  } catch (err) {
+    if (err.message && err.message.includes('no such index')) {
+      return [];
+    }
+    throw err;
+  }
 }
 
 /**
@@ -176,8 +182,11 @@ async function updateUserStatus(client, username, prefix, statusData) {
     icon: icon
   };
 
-  console.log(`[updateUserStatus] Attempting to write to key: "${key}"`);
-  console.log(`[updateUserStatus] Value: ${JSON.stringify(value)}`);
+  if (statusData.longitude !== undefined && statusData.latitude !== undefined) {
+    const longitude = parseFloat(statusData.longitude);
+    const latitude = parseFloat(statusData.latitude);
+    value.location = `POINT(${longitude} ${latitude})`;
+  }
 
   await redis.setHash(client, key, value);
   return { key, value };
@@ -223,7 +232,7 @@ app.post('/api/connect-test', async (req, res) => {
 /**
  * POST /api/list-users
  * Body: { url, username, password }
- * Returns all user statuses.
+ * Returns all user statuses (without location data).
  */
 app.post('/api/list-users', async (req, res) => {
   const { url, username, password } = req.body;
@@ -245,15 +254,39 @@ app.post('/api/list-users', async (req, res) => {
 });
 
 /**
+ * POST /api/users-on-map
+ * Body: { url, username, password }
+ * Returns users with valid locations in Israel using RediSearch GEO aggregation.
+ */
+app.post('/api/users-on-map', async (req, res) => {
+  const { url, username, password } = req.body;
+  let client;
+
+  try {
+    client = await redis.createRedisConnection({ url, username, password });
+    const users = await getUsersOnMap(client);
+    await redis.closeConnection(client);
+
+    res.json({ ok: true, users });
+  } catch (err) {
+    if (client) {
+      try { await redis.closeConnection(client); } catch (_) {}
+    }
+    console.error('users-on-map error:', err.message);
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+/**
  * POST /api/update-status
- * Body: { url, username, password, myUsername, status, message }
+ * Body: { url, username, password, myUsername, status, message, longitude, latitude }
  * Updates a user's status in Redis.
  */
 app.post('/api/update-status', async (req, res) => {
-  const { url, username, password, myUsername, status, message } = req.body;
+  const { url, username, password, myUsername, status, message, longitude, latitude } = req.body;
   let client;
 
-  console.log(`[update-status] Request: username="${username}", myUsername="${myUsername}", status="${status}"`);
+
 
   if (!myUsername || !status) {
     return res.status(400).json({ ok: false, error: 'Missing myUsername or status' });
@@ -266,44 +299,32 @@ app.post('/api/update-status', async (req, res) => {
 
   try {
     client = await redis.createRedisConnection({ url, username, password });
-
     const prefix = extractPrefix(username);
-    console.log(`[update-status] Extracted prefix: "${prefix}" from username: "${username}"`);
 
-    const result = await updateUserStatus(client, myUsername, prefix, {
-      status,
-      message: message || ''
-    });
+    const statusData = { status, message: message || '' };
+    if (longitude !== undefined && latitude !== undefined) {
+      statusData.longitude = longitude;
+      statusData.latitude = latitude;
+    }
 
-    console.log(`[update-status] SUCCESS: ${result.key} = ${JSON.stringify(result.value)}`);
+    await updateUserStatus(client, myUsername, prefix, statusData);
 
-    // Publish update to Redis pub/sub
-    const statusText = getStatusText(status);
-    const updateMessage = message
-      ? `User ${myUsername} status is ${statusText}: ${message}`
-      : `User ${myUsername} status is ${statusText}`;
+    const updateMessage = (longitude !== undefined && latitude !== undefined)
+      ? `User ${myUsername} location updated`
+      : message
+        ? `User ${myUsername} status is ${getStatusText(status)}: ${message}`
+        : `User ${myUsername} status is ${getStatusText(status)}`;
 
     await redis.publish(client, 'updates', updateMessage);
-    console.log(`[update-status] Published to 'updates': ${updateMessage}`);
-
-    // Broadcast to all SSE clients
     sendToAllClients({ type: 'update', message: updateMessage });
-
     await redis.closeConnection(client);
+
     res.json({ ok: true });
   } catch (err) {
     if (client) {
       try { await redis.closeConnection(client); } catch (_) {}
     }
-
-    const prefix = extractPrefix(username);
-    const attemptedKey = getUserKey(myUsername, prefix);
-    console.error(`[update-status] ERROR: ${err.message}`);
-    console.error(`[update-status] Attempted key: "${attemptedKey}"`);
-    console.error(`[update-status] Redis username: "${username}"`);
-    console.error(`[update-status] Extracted prefix: "${prefix}"`);
-    console.error(`[update-status] Target myUsername: "${myUsername}"`);
-
+    console.error('update-status error:', err.message);
     res.status(400).json({ ok: false, error: err.message });
   }
 });
@@ -329,62 +350,6 @@ app.get('/api/updates', (req, res) => {
     sseClients.delete(res);
     console.log(`[SSE] Client disconnected. Total clients: ${sseClients.size}`);
   });
-});
-
-/**
- * POST /api/debug-vector-search
- * Body: { url, username, password, message }
- * Debug endpoint to generate FT.SEARCH command for RedisInsight
- */
-app.post('/api/debug-vector-search', async (req, res) => {
-  const { url, username, password, message } = req.body;
-
-  if (!message) {
-    return res.status(400).json({ ok: false, error: 'Missing message parameter' });
-  }
-
-  let client;
-  try {
-    client = await redis.createRedisConnection({ url, username, password });
-    const prefix = extractPrefix(username);
-
-    // Generate embedding
-    const embedding = await generateEmbedding(message);
-
-    // Convert to hex string for RedisInsight
-    const embeddingBuffer = Buffer.from(new Float32Array(embedding).buffer);
-    const hexString = embeddingBuffer.toString('hex');
-
-    const indexName = `${prefix}_lucide_icon_index`;
-
-    // Generate the exact FT.SEARCH command for RedisInsight
-    const redisInsightCommand = `FT.SEARCH ${indexName} "*=>[KNN 1 @embedding $vector AS score]" PARAMS 2 vector "\\x${hexString}" RETURN 2 name score SORTBY score DIALECT 2`;
-
-    await redis.closeConnection(client);
-
-    res.json({
-      ok: true,
-      message: message,
-      prefix: prefix,
-      indexName: indexName,
-      embeddingDimensions: embedding.length,
-      embeddingBufferSize: embeddingBuffer.length,
-      embeddingHex: hexString,
-      redisInsightCommand: redisInsightCommand,
-      instructions: [
-        "Copy the 'redisInsightCommand' below",
-        "Paste it into RedisInsight CLI or Workbench",
-        "This will perform the exact same vector search the server does",
-        "Check if the index exists first with: FT.INFO " + indexName
-      ]
-    });
-  } catch (err) {
-    if (client) {
-      try { await redis.closeConnection(client); } catch (_) {}
-    }
-    console.error('debug-vector-search error:', err.message);
-    res.status(400).json({ ok: false, error: err.message, stack: err.stack });
-  }
 });
 
 app.listen(PORT, () => {
