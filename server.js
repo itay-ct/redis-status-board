@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const redis = require('./redis-dal');
+const { pipeline } = require('@xenova/transformers');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +21,78 @@ function sendToAllClients(message) {
   sseClients.forEach(client => {
     client.write(`data: ${JSON.stringify(message)}\n\n`);
   });
+}
+
+// ============================================================================
+// EMBEDDING MODEL & VECTOR SEARCH
+// ============================================================================
+
+let embeddingModel = null;
+
+/**
+ * Initialize the embedding model (lazy loading)
+ */
+async function getEmbeddingModel() {
+  if (!embeddingModel) {
+    console.log('[Embeddings] Loading sentence-transformers/all-MiniLM-L6-v2 model...');
+    embeddingModel = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    console.log('[Embeddings] Model loaded successfully');
+  }
+  return embeddingModel;
+}
+
+/**
+ * Generate embedding vector for a text
+ */
+async function generateEmbedding(text) {
+  console.log(`[generateEmbedding] Generating embedding for text: "${text}"`);
+  const model = await getEmbeddingModel();
+  const output = await model(text, { pooling: 'mean', normalize: true });
+  const embedding = Array.from(output.data);
+  console.log(`[generateEmbedding] Generated embedding with ${embedding.length} dimensions`);
+  console.log(`[generateEmbedding] First 5 values: [${embedding.slice(0, 5).join(', ')}]`);
+  return embedding;
+}
+
+/**
+ * Search for the best matching icon using vector similarity
+ * @param {Object} client - Redis client
+ * @param {string} statusMessage - The status message to search for
+ * @param {string} prefix - User prefix (e.g., 'a', 'b')
+ * @returns {Promise<string>} - The best matching icon name
+ */
+async function searchBestIcon(client, statusMessage, prefix) {
+  try {
+    console.log(`[searchBestIcon] Starting icon search for message: "${statusMessage}"`);
+
+    if (!statusMessage || statusMessage.trim() === '') {
+      console.log(`[searchBestIcon] Empty message, returning default icon`);
+      return 'circle'; // Default icon for empty messages
+    }
+
+    // Generate embedding for the status message
+    const embedding = await generateEmbedding(statusMessage);
+
+    // Perform vector search using redis-dal
+    const indexName = `${prefix}_lucide_icon_index`;
+    const searchResults = await redis.vectorSearch(client, indexName, embedding, {
+      k: 1,
+      returnFields: ['name', 'score']  // Field is 'name', not 'icon_name'
+    });
+
+    if (searchResults.total > 0 && searchResults.documents.length > 0) {
+      const bestMatch = searchResults.documents[0];
+      const iconName = bestMatch.value.name;  // Use 'name' field
+      console.log(`[searchBestIcon] ✓ Found icon: "${iconName}" for message: "${statusMessage}"`);
+      return iconName;
+    }
+
+    console.log(`[searchBestIcon] No results found, using default icon`);
+    return 'circle'; // Default fallback
+  } catch (err) {
+    console.error(`[searchBestIcon] ERROR: ${err.message}`);
+    return 'circle'; // Fallback on error
+  }
 }
 
 // ============================================================================
@@ -79,7 +152,8 @@ async function getAllUsers(client) {
     return {
       username,
       status: data.status || 'green',
-      message: data.message || ''
+      message: data.message || '',
+      icon: data.icon || 'circle'
     };
   });
 }
@@ -89,15 +163,23 @@ async function getAllUsers(client) {
  */
 async function updateUserStatus(client, username, prefix, statusData) {
   const key = getUserKey(username, prefix);
+
+  // Search for the best matching icon based on the message
+  let icon = 'circle'; // Default icon
+  if (statusData.message && statusData.message.trim() !== '') {
+    icon = await searchBestIcon(client, statusData.message, prefix);
+  }
+
   const value = {
     status: statusData.status,
-    message: statusData.message || ''
+    message: statusData.message || '',
+    icon: icon
   };
 
   console.log(`[updateUserStatus] Attempting to write to key: "${key}"`);
   console.log(`[updateUserStatus] Value: ${JSON.stringify(value)}`);
 
-  await redis.setJSON(client, key, value);
+  await redis.setHash(client, key, value);
   return { key, value };
 }
 
@@ -121,13 +203,13 @@ app.post('/api/connect-test', async (req, res) => {
     // Get current user's status if it exists
     const prefix = extractPrefix(username);
     const key = getUserKey(username, prefix);
-    const currentStatus = await redis.getJSON(client, key);
+    const currentStatus = await redis.getHash(client, key);
 
     await redis.closeConnection(client);
     res.json({
       ok: true,
       pong,
-      currentStatus: currentStatus || { status: 'green', message: '' }
+      currentStatus: currentStatus || { status: 'green', message: '', icon: 'circle' }
     });
   } catch (err) {
     if (client) {
@@ -247,6 +329,62 @@ app.get('/api/updates', (req, res) => {
     sseClients.delete(res);
     console.log(`[SSE] Client disconnected. Total clients: ${sseClients.size}`);
   });
+});
+
+/**
+ * POST /api/debug-vector-search
+ * Body: { url, username, password, message }
+ * Debug endpoint to generate FT.SEARCH command for RedisInsight
+ */
+app.post('/api/debug-vector-search', async (req, res) => {
+  const { url, username, password, message } = req.body;
+
+  if (!message) {
+    return res.status(400).json({ ok: false, error: 'Missing message parameter' });
+  }
+
+  let client;
+  try {
+    client = await redis.createRedisConnection({ url, username, password });
+    const prefix = extractPrefix(username);
+
+    // Generate embedding
+    const embedding = await generateEmbedding(message);
+
+    // Convert to hex string for RedisInsight
+    const embeddingBuffer = Buffer.from(new Float32Array(embedding).buffer);
+    const hexString = embeddingBuffer.toString('hex');
+
+    const indexName = `${prefix}_lucide_icon_index`;
+
+    // Generate the exact FT.SEARCH command for RedisInsight
+    const redisInsightCommand = `FT.SEARCH ${indexName} "*=>[KNN 1 @embedding $vector AS score]" PARAMS 2 vector "\\x${hexString}" RETURN 2 name score SORTBY score DIALECT 2`;
+
+    await redis.closeConnection(client);
+
+    res.json({
+      ok: true,
+      message: message,
+      prefix: prefix,
+      indexName: indexName,
+      embeddingDimensions: embedding.length,
+      embeddingBufferSize: embeddingBuffer.length,
+      embeddingHex: hexString,
+      redisInsightCommand: redisInsightCommand,
+      instructions: [
+        "Copy the 'redisInsightCommand' below",
+        "Paste it into RedisInsight CLI or Workbench",
+        "This will perform the exact same vector search the server does",
+        "Check if the index exists first with: FT.INFO " + indexName
+      ]
+    });
+  } catch (err) {
+    if (client) {
+      try { await redis.closeConnection(client); } catch (_) {}
+    }
+    console.error('debug-vector-search error:', err.message);
+    res.status(400).json({ ok: false, error: err.message, stack: err.stack });
+  }
 });
 
 app.listen(PORT, () => {

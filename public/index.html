@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Redis Status Board</title>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     * {
       margin: 0;
@@ -772,8 +774,32 @@
 
           // Message column
           const tdMessage = document.createElement('td');
-          tdMessage.textContent = user.message || '—';
-          tdMessage.style.color = user.message ? '#ccc' : '#666';
+          if (user.message) {
+            // Create icon element - use icon from user data or default to 'message-circle'
+            const iconSpan = document.createElement('i');
+            const iconName = user.icon || 'message-circle';
+            iconSpan.setAttribute('data-lucide', iconName);
+            iconSpan.style.width = '24px';
+            iconSpan.style.height = '24px';
+            iconSpan.style.marginRight = '8px';
+            iconSpan.style.verticalAlign = 'middle';
+            iconSpan.style.display = 'inline-block';
+
+            // Create text span
+            const textSpan = document.createElement('span');
+            textSpan.textContent = user.message;
+            textSpan.style.verticalAlign = 'middle';
+
+            tdMessage.appendChild(iconSpan);
+            tdMessage.appendChild(textSpan);
+            tdMessage.style.color = '#ccc';
+
+            // Initialize the icon after adding to DOM
+            setTimeout(() => lucide.createIcons(), 0);
+          } else {
+            tdMessage.textContent = '—';
+            tdMessage.style.color = '#666';
+          }
           tr.appendChild(tdMessage);
 
           usersTableBody.appendChild(tr);
@@ -852,6 +878,15 @@
         connect(true);
       }
     })();
+
+    // ============================================================================
+    // INITIALIZE LUCIDE ICONS
+    // ============================================================================
+
+    // Initialize Lucide icons on page load
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
   </script>
 </body>
 </html>

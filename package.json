@@ -18,9 +18,10 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@xenova/transformers": "^2.17.2",
+    "cors": "^2.8.5",
     "express": "^4.19.0",
-    "redis": "^4.6.13",
-    "cors": "^2.8.5"
+    "redis": "^4.6.13"
   },
   "engines": {
     "node": ">=14.0.0"
