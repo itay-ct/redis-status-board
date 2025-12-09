@@ -665,8 +665,9 @@ This step has **three parts**: Create an index, store locations, and query them.
 #### Part A: Download Israel Boundary Data
 
 1. Download the GeoJSON file from [SimpleMaps](https://simplemaps.com/gis/country/il#all)
-2. Save it as `il.json` in your project's root directory
+2. Save it as `il.json` in your project's root directory, update your code with the file name
 3. This file contains Israel's geographic boundary as a polygon
+4. Helper function to parse this file is already implemented in `geojsonToWKT()`
 
 #### Part B: Create a Redis Search Index
 
