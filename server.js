@@ -50,7 +50,11 @@ app.post('/api/connect-test', async (req, res) => {
 
   try {
     await redis.connect({ url, username, password });
+
     const pong = await redis.ping();
+    if (!pong || pong !== 'PONG') {
+      throw new Error('Connection failed: PING did not return PONG');
+    }
 
     const prefix = extractPrefix(username);
     const myUsername = username;
