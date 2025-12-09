@@ -28,6 +28,10 @@ async function updateStatus(username, prefix, statusData) {
 // TODO
 }
 
+async function getStatus(username, prefix) {
+// TODO
+}
+
 //==============================================================================
 // STEP 3 - Getting all the statuses
 //==============================================================================
