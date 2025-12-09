@@ -63,10 +63,6 @@ The app will be available at `http://localhost:3000`
 
 ## 🎓 Workshop Guide
 
-**Ready to build this project step-by-step?**
-
-👉 **[Start the Workshop Guide](guide.md)**
-
 ### Prerequisites
 
 Before starting the workshop, make sure you have:
@@ -79,6 +75,10 @@ Before starting the workshop, make sure you have:
 2. ✅ **Node.js** installed (v14 or higher)
 
 3. ✅ **This repository** cloned and dependencies installed (`npm install`)
+
+**Ready to build this project step-by-step?**
+
+👉 **[Start the Workshop Guide](guide.md)**
 
 The workshop guide will walk you through implementing all Redis operations from scratch!
 
