@@ -133,13 +133,10 @@ async function ping() {
 4. You should see: **"✅ Connected! PONG received"**
 5. The UI should show your username and the status controls
 
-**Bonus:** Your credentials are automatically cached in localStorage, so you won't need to re-enter them on page refresh!
-
 ### Notes
 
-- **Credential Caching**: The UI saves your credentials locally. To change them, click the "Logout" button.
+- **Credential Caching**: Your credentials are automatically cached in localStorage, so you won't need to re-enter them on page refresh! To change them, click the "Logout" button.
 - **Map Visibility**: If the map appears on the right side and you find it distracting, click the collapse button (◀). This preference is also cached.
-- **Error Handling**: If you see connection errors, double-check your URL format: `redis://host:port` or `rediss://host:port` for SSL.
 
 </details>
 
@@ -872,7 +869,6 @@ You created a **real-time team status dashboard** with:
 - Key naming conventions for multi-tenant applications
 - Separate clients for pub/sub vs regular operations
 - Using indexes instead of SCAN for better performance
-- Error handling and fallback strategies
 
 </details>
 
