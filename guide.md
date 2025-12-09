@@ -8,7 +8,8 @@ In this hands-on workshop, you'll build a **real-time team status dashboard** wh
 - Pin their location on a map
 - See live updates from all participants in real-time
 
-## Workshop Overview
+<details open>
+<summary><h2 style="display: inline;">Workshop Overview</h2></summary>
 
 All participants share a **single Redis cluster** (connection details will be provided). Each participant gets their own username and password to connect.
 
@@ -62,9 +63,12 @@ The important part: **`%R~* %W~a:* %W~status:a:*`**
 
 We're using the official [`redis`](https://www.npmjs.com/package/redis) npm package (v4.x) which provides a native Node.js interface to Redis commands.
 
+</details>
+
 ---
 
-## Step 1: Connect to Redis
+<details>
+<summary><h2 style="display: inline;">Step 1: Connect to Redis</h2></summary>
 
 ### Introduction
 
@@ -129,9 +133,12 @@ async function ping() {
 - **Map Visibility**: If the map appears on the right side and you find it distracting, click the collapse button (◀). This preference is also cached.
 - **Error Handling**: If you see connection errors, double-check your URL format: `redis://host:port` or `rediss://host:port` for SSL.
 
+</details>
+
 ---
 
-## Step 2: Store and Retrieve User Status
+<details>
+<summary><h2 style="display: inline;">Step 2: Store and Retrieve User Status</h2></summary>
 
 ### Introduction
 
@@ -228,9 +235,12 @@ async function getStatus(username, prefix) {
 - **Default Values**: If a field is missing, provide sensible defaults (`green` for status, empty string for message)
 - **Hash vs String**: We use Hashes instead of JSON strings because they're more efficient and allow partial updates
 
+</details>
+
 ---
 
-## Step 3: List All Users
+<details>
+<summary><h2 style="display: inline;">Step 3: List All Users</h2></summary>
 
 ### Introduction
 
@@ -309,10 +319,12 @@ async function getAllStatuses() {
 - **Cursor-based**: SCAN doesn't guarantee to return all keys in one call - it may take multiple iterations.
 - **No Duplicates Guarantee**: SCAN may return the same key multiple times if the keyspace changes during iteration.
 
+</details>
+
 ---
 
-
-## Step 4: Real-Time Updates with Pub/Sub
+<details>
+<summary><h2 style="display: inline;">Step 4: Real-Time Updates with Pub/Sub</h2></summary>
 
 ### Introduction
 
@@ -404,9 +416,12 @@ It creates a new client with the same connection settings (url, username, passwo
 - **Subscriber Lifecycle**: The subscriber client is created once and reused for all subscriptions
 - **Error Handling**: Always add error handlers to both clients to avoid crashes
 
+</details>
+
 ---
 
-## Step 5: AI-Powered Icons with Vector Search
+<details>
+<summary><h2 style="display: inline;">Step 5: AI-Powered Icons with Vector Search</h2></summary>
 
 ### Introduction
 
@@ -576,9 +591,12 @@ async function updateStatus(username, prefix, statusData) {
 - **Performance**: Vector search is very fast - typically <10ms for thousands of vectors
 - **Fallback**: Always return a default icon if search fails
 
+</details>
+
 ---
 
-## Step 6: Map Search with Geospatial Queries
+<details>
+<summary><h2 style="display: inline;">Step 6: Map Search with Geospatial Queries</h2></summary>
 
 ### Introduction
 
@@ -770,9 +788,12 @@ function extractPrefixFromClient() {
 - **Alternative to SCAN**: Notice how we replaced SCAN with Redis Query Engine? Much faster and more powerful!
 - **Future Enhancement**: You could add filters like `@status:{green} @location:[WITHIN $shape]` to find only available users in Israel
 
+</details>
+
 ---
 
-## 🎉 Congratulations!
+<details>
+<summary><h2 style="display: inline;">🎉 Congratulations!</h2></summary>
 
 You've completed the Redis Status Board workshop! 🚀
 
@@ -804,9 +825,12 @@ You created a **real-time team status dashboard** with:
 - Using indexes instead of SCAN for better performance
 - Error handling and fallback strategies
 
+</details>
+
 ---
 
-## 🚀 Optional Challenges
+<details>
+<summary><h2 style="display: inline;">🚀 Optional Challenges</h2></summary>
 
 Want to take it further? Try these enhancements (no guidance provided - you're on your own!):
 
@@ -851,9 +875,12 @@ Show who's currently online vs offline.
 
 **Hint:** Use Redis keys with TTL that get refreshed on heartbeat
 
+</details>
+
 ---
 
-## 📚 Additional Resources
+<details>
+<summary><h2 style="display: inline;">📚 Additional Resources</h2></summary>
 
 **Redis Documentation:**
 - [Redis Commands Reference](https://redis.io/commands/)
@@ -873,9 +900,12 @@ Show who's currently online vs offline.
 - [Redis University](https://university.redis.com/) - Free courses
 - [Redis Blog](https://redis.io/blog/) - Latest updates and tutorials
 
+</details>
+
 ---
 
-## 🙏 Thank You!
+<details>
+<summary><h2 style="display: inline;">🙏 Thank You!</h2></summary>
 
 Thank you for participating in this workshop! We hope you enjoyed learning about Redis and building a real-time application.
 
@@ -883,9 +913,12 @@ Thank you for participating in this workshop! We hope you enjoyed learning about
 
 **Keep building with Redis!** 🚀
 
+</details>
+
 ---
 
-## Appendix: Common Issues and Solutions
+<details>
+<summary><h2 style="display: inline;">Appendix: Common Issues and Solutions</h2></summary>
 
 ### Issue: "Connection refused" or "ECONNREFUSED"
 **Solution:** Check your Redis URL format. It should be:
@@ -924,6 +957,8 @@ Thank you for participating in this workshop! We hope you enjoyed learning about
 FT.DROPINDEX a_status_index
 ```
 Then recreate it with `FT.CREATE`
+
+</details>
 
 ---
 
