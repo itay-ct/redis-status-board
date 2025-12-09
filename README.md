@@ -67,7 +67,7 @@ The app will be available at `http://localhost:3000`
 
 Before starting the workshop, make sure you have:
 
-1. ✅ **Redis Cloud account** with credentials:
+1. ✅ **Redis account** with credentials:
    - Redis URL (format: `redis://host:port` or `rediss://host:port`)
    - Username (e.g., `redisboard-a`)
    - Password
