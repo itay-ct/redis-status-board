@@ -169,7 +169,7 @@
       bottom: 20px;
       right: 20px;
       background: #2d2d2d;
-      border: 1px solid #4CAF50;
+      border: 2px solid #4CAF50;
       border-radius: 8px;
       padding: 1rem 1.5rem;
       max-width: 400px;
@@ -178,6 +178,18 @@
       z-index: 1000;
       will-change: transform, opacity;
       backface-visibility: hidden;
+    }
+
+    .notification-popup.status-red {
+      border-color: #ef4444;
+    }
+
+    .notification-popup.status-green {
+      border-color: #10b981;
+    }
+
+    .notification-popup.status-purple {
+      border-color: #a855f7;
     }
 
     .notification-popup.hiding {
@@ -516,9 +528,26 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
+    .marker-circle.status-red {
+      background: #ef4444;
+    }
+
+    .marker-circle.status-green {
+      background: #10b981;
+    }
+
+    .marker-circle.status-purple {
+      background: #a855f7;
+    }
+
     .marker-circle svg {
       width: 24px;
       height: 24px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2;
+      position: relative;
+      z-index: 10;
     }
 
     .marker-label {
@@ -661,7 +690,9 @@
     let conn = {
       url: null,
       username: null,
-      password: null
+      password: null,
+      prefix: null,
+      myUsername: null
     };
 
     const STORAGE_KEY = 'redisStatusBoard_credentials';
@@ -786,19 +817,25 @@
     // ============================================================================
 
     function showNotification(message) {
-      // Remove existing notification if any
       const existing = document.querySelector('.notification-popup');
       if (existing) {
         existing.remove();
       }
 
-      // Create notification
       const notification = document.createElement('div');
       notification.className = 'notification-popup';
+
+      if (message.includes('Away')) {
+        notification.classList.add('status-purple');
+      } else if (message.includes('Available')) {
+        notification.classList.add('status-green');
+      } else if (message.includes('Busy')) {
+        notification.classList.add('status-red');
+      }
+
       notification.innerHTML = `<div class="message">${message}</div>`;
       document.body.appendChild(notification);
 
-      // Auto-hide after 5 seconds
       setTimeout(() => {
         notification.classList.add('hiding');
         setTimeout(() => notification.remove(), 300);
@@ -814,13 +851,7 @@
         eventSource.close();
       }
 
-      const params = new URLSearchParams({
-        url: conn.url,
-        username: conn.username,
-        password: conn.password
-      });
-
-      eventSource = new EventSource(`/api/updates?${params}`);
+      eventSource = new EventSource('/api/updates');
 
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
@@ -880,7 +911,7 @@
 
     function logout() {
       clearCredentials();
-      conn = { url: null, username: null, password: null };
+      conn = { url: null, username: null, password: null, prefix: null, myUsername: null };
       showLoggedOutState();
       showError('');
     }
@@ -971,9 +1002,13 @@
         // Save credentials on successful connection
         saveCredentials(conn.url, conn.username, conn.password);
 
+        // Store prefix and myUsername from server response
+        conn.prefix = result.prefix;
+        conn.myUsername = result.myUsername;
+
         currentUserSpan.textContent = conn.username;
 
-        // Populate current status from Redis
+        // Populate current status and message if they exist
         if (result.currentStatus) {
           myStatusSelect.value = result.currentStatus.status || 'green';
           statusMessageInput.value = result.currentStatus.message || '';
@@ -1024,11 +1059,7 @@
     async function refreshUsers() {
       try {
         // Fetch user list (without locations)
-        const data = await postJSON('/api/list-users', {
-          url: conn.url,
-          username: conn.username,
-          password: conn.password
-        });
+        const data = await postJSON('/api/list-users', {});
 
         usersTableBody.innerHTML = '';
 
@@ -1058,7 +1089,7 @@
           const tdStatus = document.createElement('td');
           const statusDiv = document.createElement('div');
           statusDiv.className = 'status-indicator status-' + user.status;
-          statusDiv.innerHTML = `<span class="status-dot"></span><span>${getStatusEmoji(user.status)} ${getStatusText(user.status)}</span>`;
+          statusDiv.innerHTML = `<span>${getStatusEmoji(user.status)} ${getStatusText(user.status)}</span>`;
           tdStatus.appendChild(statusDiv);
           tr.appendChild(tdStatus);
 
@@ -1109,11 +1140,7 @@
 
         clearMapMarkers();
 
-        const data = await postJSON('/api/users-on-map', {
-          url: conn.url,
-          username: conn.username,
-          password: conn.password
-        });
+        const data = await postJSON('/api/users-on-map', {});
 
         console.log(`[refreshMapMarkers] Received ${data.users.length} users with locations`);
 
@@ -1159,7 +1186,7 @@
       // Create custom marker HTML
       const markerHtml = `
         <div class="marker-content">
-          <div class="marker-circle">
+          <div class="marker-circle status-${user.status || 'green'}">
             <i data-lucide="${user.icon || 'circle'}"></i>
           </div>
           <div class="marker-label">${user.username}</div>
@@ -1242,10 +1269,8 @@
         updateStatusBtn.disabled = true;
 
         const payload = {
-          url: conn.url,
-          username: conn.username,
-          password: conn.password,
-          myUsername: conn.username,
+          myUsername: conn.myUsername,
+          prefix: conn.prefix,
           status: myStatusSelect.value,
           message: statusMessageInput.value.trim(),
           longitude: pendingLocation.longitude,
@@ -1282,10 +1307,8 @@
         updateStatusBtn.disabled = true;
 
         await postJSON('/api/update-status', {
-          url: conn.url,
-          username: conn.username,
-          password: conn.password,
-          myUsername: conn.username,
+          myUsername: conn.myUsername,
+          prefix: conn.prefix,
           status: myStatusSelect.value,
           message: statusMessageInput.value.trim()
         });

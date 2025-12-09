@@ -47,6 +47,10 @@ location: "34.7818,32.0853"
 # Install dependencies
 npm install
 
+# Create .env file with your Redis credentials
+cp .env.example .env
+# Edit .env with your Redis URL, username, and password
+
 # Start the server
 node server.js
 ```
