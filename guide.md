@@ -124,6 +124,27 @@ async function ping() {
 
 </details>
 
+#### 3. `disconnect()`
+
+This function should:
+1. Check if the client exists
+2. Call `quit()` to gracefully close the connection
+3. Set the client to `null`
+
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
+```javascript
+async function disconnect() {
+  if (client) {
+    await client.quit();
+    client = null;
+  }
+}
+```
+
+</details>
+
 ### Desired Output
 
 ✅ After implementing these functions:
