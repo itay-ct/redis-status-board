@@ -94,7 +94,9 @@ This function should:
 
 **Reference:** [Redis Node.js Connection Guide](https://redis.io/docs/latest/develop/clients/nodejs/connect/#basic-connection)
 
-**Example:**
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
 ```javascript
 async function connect({ url, username, password }) {
   client = createClient({ url, username, password });
@@ -103,18 +105,24 @@ async function connect({ url, username, password }) {
 }
 ```
 
+</details>
+
 #### 2. `ping()`
 
 This function should:
 1. Call the `PING` command on the client
 2. Return the result (should be "PONG")
 
-**Example:**
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
 ```javascript
 async function ping() {
   return await client.ping();
 }
 ```
+
+</details>
 
 ### Desired Output
 
@@ -174,7 +182,9 @@ This function should:
 
 **Redis Command:** [`HSET`](https://redis.io/docs/latest/commands/hset/)
 
-**Example:**
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
 ```javascript
 async function updateStatus(username, prefix, statusData) {
   const key = `status:${prefix}:${username}`;
@@ -185,6 +195,8 @@ async function updateStatus(username, prefix, statusData) {
   await client.hSet(key, value);
 }
 ```
+
+</details>
 
 **Important:** For now, create **only ONE key** - your own status key. Don't worry about icons or locations yet!
 
@@ -197,7 +209,9 @@ This function should:
 
 **Redis Command:** [`HGETALL`](https://redis.io/docs/latest/commands/hgetall/)
 
-**Example:**
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
 ```javascript
 async function getStatus(username, prefix) {
   const key = `status:${prefix}:${username}`;
@@ -214,6 +228,8 @@ async function getStatus(username, prefix) {
   };
 }
 ```
+
+</details>
 
 ### Desired Output
 
@@ -273,7 +289,9 @@ This function should:
 
 **Reference:** [SCAN Iterator Documentation](https://github.com/redis/node-redis?tab=readme-ov-file#scan-iterator)
 
-**Example:**
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
 ```javascript
 async function getAllStatuses() {
   const results = [];
@@ -292,6 +310,8 @@ async function getAllStatuses() {
   return results;
 }
 ```
+
+</details>
 
 **How it works:**
 - `scanIterator()` returns an async iterator
@@ -358,12 +378,16 @@ This function should:
 
 **Redis Command:** [`PUBLISH`](https://redis.io/docs/latest/commands/publish/)
 
-**Example:**
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
 ```javascript
 async function publish(channel, message) {
   await client.publish(channel, message);
 }
 ```
+
+</details>
 
 #### 2. `subscribe(channel, messageHandler)`
 
@@ -374,7 +398,9 @@ This function should:
 
 **Reference:** [Redis Node.js Pub/Sub Guide](https://github.com/redis/node-redis/blob/master/docs/pub-sub.md)
 
-**Example:**
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
 ```javascript
 let subscriberClient = null;
 
@@ -388,6 +414,8 @@ async function subscribe(channel, messageHandler) {
   await subscriberClient.subscribe(channel, messageHandler);
 }
 ```
+
+</details>
 
 **Why `client.duplicate()`?**
 It creates a new client with the same connection settings (url, username, password) - super convenient!
@@ -447,6 +475,12 @@ Example:
 3. Query: "Find the icon whose description is most similar to my status message"
 4. Redis uses K-Nearest Neighbors (KNN) to find the closest match
 
+**Embedding Model:**
+We'll use the [**Xenova/all-MiniLM-L6-v2**](https://huggingface.co/Xenova/all-MiniLM-L6-v2) model - a lightweight, fast sentence transformer that:
+- Generates 384-dimensional embeddings
+- Runs efficiently in both Python and Node.js (via Transformers.js)
+- Produces high-quality semantic representations for short text
+
 ### Task Details
 
 This step has **two parts**: Loading icon data, then implementing the search.
@@ -459,7 +493,7 @@ We'll use a **Python notebook** to generate embeddings and load them into Redis.
 
 1. **Open the notebook:** [Icon Loader Notebook](https://colab.research.google.com/github/itay-ct/IconLoader/blob/main/IconLoader.ipynb)
 
-2. **⚠️ CRITICAL: Modify Step 1 BEFORE running anything!**
+2. **⛔ CRITICAL: Modify Step 1 BEFORE running anything!**
 
    In the first code cell, change the index name and key prefix to include **your prefix**:
 
@@ -479,7 +513,9 @@ We'll use a **Python notebook** to generate embeddings and load them into Redis.
    ```
 
 5. **Optional - Customize icons (Step 4):**
-   - Upload your own `icons.txt` file with icon names you want
+   - You can use any icon from the [Lucide icon library](https://lucide.dev/icons/) (1000+ icons available!)
+   - Download the [default icon set](https://raw.githubusercontent.com/itay-ct/IconLoader/refs/heads/main/icons.txt) and modify it with your preferred icons
+   - Upload your customized `icons.txt` file when prompted in Step 4 of the notebook
    - Or just click "Cancel" to use the default icon set
 
 6. **Run all remaining cells** to load the icons
@@ -503,7 +539,9 @@ You'll implement `searchBestIcon(statusMessage, prefix)`:
 
 **Reference:** [Redis Vector Search - KNN](https://redis.io/docs/latest/develop/ai/search-and-query/query/vector-search/#k-neareast-neighbours-knn)
 
-**Example:**
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
 ```javascript
 const DEFAULT_ICON = 'circle';
 let embeddingModel = null;
@@ -548,7 +586,12 @@ async function searchBestIcon(statusMessage, prefix) {
 }
 ```
 
+</details>
+
 **Don't forget:** Call `searchBestIcon()` from `updateStatus()` to automatically set the icon!
+
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Updated updateStatus()</summary>
 
 ```javascript
 async function updateStatus(username, prefix, statusData) {
@@ -569,6 +612,8 @@ async function updateStatus(username, prefix, statusData) {
   await client.hSet(key, value);
 }
 ```
+
+</details>
 
 ### Desired Output
 
@@ -703,7 +748,9 @@ Locate **STEP 6** in `redis-dal.js` and implement `getStatusesWithLocation()`:
 
 **Reference:** [Redis GEOSHAPE Documentation](https://redis.io/docs/latest/develop/ai/search-and-query/indexing/geoindex/#geoshape)
 
-**Example:**
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
+
 ```javascript
 async function getStatusesWithLocation() {
   try {
@@ -765,14 +812,16 @@ function extractPrefixFromClient() {
 }
 ```
 
+</details>
+
 ### Desired Output
 
 ✅ After implementing this:
 1. Click the "📍 Pin Location" button in the UI
-2. Click anywhere on the map of Israel
+2. Click anywhere on the map
 3. Your location marker appears with your status color!
 4. Other users who set their location will also appear on the map
-5. The map only shows users with locations **inside Israel** (thanks to the WITHIN query!)
+5. The map only shows users with locations **inside the country boundaries** (thanks to the WITHIN query!), try choosing a location outside the boundaries and see what happens.
 
 **Try it:**
 - Move your location by clicking a different spot
@@ -901,65 +950,5 @@ Show who's currently online vs offline.
 - [Redis Blog](https://redis.io/blog/) - Latest updates and tutorials
 
 </details>
-
----
-
-<details>
-<summary><h2 style="display: inline;">🙏 Thank You!</h2></summary>
-
-Thank you for participating in this workshop! We hope you enjoyed learning about Redis and building a real-time application.
-
-**Questions or feedback?** Feel free to reach out to the workshop organizers.
-
-**Keep building with Redis!** 🚀
-
-</details>
-
----
-
-<details>
-<summary><h2 style="display: inline;">Appendix: Common Issues and Solutions</h2></summary>
-
-### Issue: "Connection refused" or "ECONNREFUSED"
-**Solution:** Check your Redis URL format. It should be:
-- `redis://host:port` for non-SSL
-- `rediss://host:port` for SSL (note the double 's')
-
-### Issue: "NOAUTH Authentication required"
-**Solution:** Make sure you're providing username and password in the connection
-
-### Issue: "ERR Can't execute 'scan': only (P|S)SUBSCRIBE allowed"
-**Solution:** You're trying to run a regular command on a subscriber client. Use `client.duplicate()` to create a separate subscriber client.
-
-### Issue: Vector search returns no results
-**Solution:**
-1. Check that you ran the Python notebook and loaded icons
-2. Verify the index name matches your prefix (`a_lucide_icon_index` for user `a`)
-3. Check RedisInsight to confirm icon keys exist
-
-### Issue: Map doesn't show any users
-**Solution:**
-1. Verify you created the status index with `FT.CREATE`
-2. Check that users have set their locations (click "Pin Location")
-3. Verify the `il.json` file is in the project root
-4. Check browser console for errors
-
-### Issue: Real-time updates not working
-**Solution:**
-1. Check that `subscribe()` is being called on connection
-2. Verify the subscriber client is created with `client.duplicate()`
-3. Check browser console for SSE connection errors
-4. Make sure the server is publishing to the `updates` channel
-
-### Issue: "Index already exists" error
-**Solution:** Drop the existing index first:
-```redis
-FT.DROPINDEX a_status_index
-```
-Then recreate it with `FT.CREATE`
-
-</details>
-
----
 
 **Happy Coding! 🎊**
