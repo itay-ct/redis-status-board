@@ -176,10 +176,12 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
       animation: slideIn 0.3s ease-out;
       z-index: 1000;
+      will-change: transform, opacity;
+      backface-visibility: hidden;
     }
 
     .notification-popup.hiding {
-      animation: slideOut 0.3s ease-out;
+      animation: slideOut 0.3s ease-out forwards;
     }
 
     @keyframes slideIn {
@@ -295,10 +297,17 @@
       gap: 1.5rem;
       height: calc(100vh - 140px);
       padding: 1.5rem;
+      transition: grid-template-columns 0.3s ease;
     }
 
     .main-layout.visible {
       display: grid;
+    }
+
+    .main-layout.map-collapsed {
+      grid-template-columns: 1fr 40px;
+      padding-right: 0;
+      gap: 0;
     }
 
     .left-panel {
@@ -312,6 +321,11 @@
       background: #2d2d2d;
       border-radius: 8px;
       border: 1px solid #404040;
+      transition: all 0.3s ease;
+    }
+
+    .right-panel.collapsed {
+      border-radius: 8px 0 0 8px;
     }
 
     .users-section {
@@ -431,6 +445,12 @@
       border-radius: 8px;
       overflow: hidden;
       background: #2d2d2d;
+      transition: opacity 0.3s ease;
+    }
+
+    .right-panel.collapsed .map-container {
+      opacity: 0;
+      pointer-events: none;
     }
 
     #map {
@@ -441,6 +461,34 @@
 
     .map-container.pin-mode #map {
       cursor: crosshair !important;
+    }
+
+    .map-toggle-btn {
+      position: absolute;
+      top: 50%;
+      left: 10px;
+      transform: translateY(-50%);
+      z-index: 1000;
+      background: #1a1a1a;
+      border: 1px solid #404040;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .map-toggle-btn:hover {
+      background: #2d2d2d;
+      border-color: #666;
+    }
+
+    .right-panel.collapsed .map-toggle-btn {
+      left: 50%;
+      transform: translate(-50%, -50%);
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
     }
 
     /* Custom Leaflet marker styles */
@@ -486,6 +534,7 @@
     .update-location-btn {
       background: #6c3fb5;
       margin-left: 0.5rem;
+      transition: opacity 0.3s ease;
     }
 
     .update-location-btn:hover {
@@ -498,6 +547,10 @@
 
     .update-location-btn.active:hover {
       background: #e55a2b;
+    }
+
+    body.map-collapsed .update-location-btn {
+      display: none;
     }
   </style>
 </head>
@@ -572,7 +625,8 @@
     </div>
 
     <!-- Right Panel - Map -->
-    <div class="right-panel">
+    <div class="right-panel" id="rightPanel">
+      <button class="map-toggle-btn" id="mapToggleBtn">▶</button>
       <div class="map-container" id="mapContainer">
         <div id="map"></div>
       </div>
@@ -601,6 +655,8 @@
     const mainLayout = document.getElementById('mainLayout');
     const updateLocationBtn = document.getElementById('updateLocationBtn');
     const mapContainer = document.getElementById('mapContainer');
+    const rightPanel = document.getElementById('rightPanel');
+    const mapToggleBtn = document.getElementById('mapToggleBtn');
 
     let conn = {
       url: null,
@@ -609,6 +665,7 @@
     };
 
     const STORAGE_KEY = 'redisStatusBoard_credentials';
+    const MAP_STATE_KEY = 'redisStatusBoard_mapCollapsed';
     let eventSource = null;
     let pinMode = false;
     let pendingLocation = null;
@@ -700,6 +757,26 @@
       return null;
     }
 
+    function saveMapState(collapsed) {
+      localStorage.setItem(MAP_STATE_KEY, collapsed ? 'true' : 'false');
+    }
+
+    function loadMapState() {
+      const stored = localStorage.getItem(MAP_STATE_KEY);
+      return stored === 'true';
+    }
+
+    function toggleMapVisibility() {
+      const isCollapsed = rightPanel.classList.toggle('collapsed');
+      mainLayout.classList.toggle('map-collapsed', isCollapsed);
+      document.body.classList.toggle('map-collapsed', isCollapsed);
+      mapToggleBtn.textContent = isCollapsed ? '◀' : '▶';
+      saveMapState(isCollapsed);
+      if (!isCollapsed && map) {
+        setTimeout(() => map.invalidateSize(), 300);
+      }
+    }
+
     function clearCredentials() {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -737,7 +814,13 @@
         eventSource.close();
       }
 
-      eventSource = new EventSource('/api/updates');
+      const params = new URLSearchParams({
+        url: conn.url,
+        username: conn.username,
+        password: conn.password
+      });
+
+      eventSource = new EventSource(`/api/updates?${params}`);
 
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
@@ -817,6 +900,9 @@
 
     // Logout button
     logoutBtn.addEventListener('click', logout);
+
+    // Map toggle button
+    mapToggleBtn.addEventListener('click', toggleMapVisibility);
 
     // Normalize Redis URL
     function normalizeRedisUrl(url) {
@@ -1246,15 +1332,20 @@
     // AUTO-LOGIN ON PAGE LOAD
     // ============================================================================
 
-    (function autoLogin() {
+    (function init() {
+      const mapCollapsed = loadMapState();
+      if (mapCollapsed) {
+        rightPanel.classList.add('collapsed');
+        mainLayout.classList.add('map-collapsed');
+        document.body.classList.add('map-collapsed');
+        mapToggleBtn.textContent = '◀';
+      }
+
       const credentials = loadCredentials();
       if (credentials) {
-        // Populate form fields
         urlInput.value = credentials.url;
         usernameInput.value = credentials.username;
         passwordInput.value = credentials.password;
-
-        // Attempt auto-login
         connect(true);
       }
     })();
