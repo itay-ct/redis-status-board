@@ -572,6 +572,7 @@ async function searchBestIcon(statusMessage, prefix) {
   try {
     // Load model once
     if (!embeddingModel) {
+      const { pipeline } = await import('@xenova/transformers');
       embeddingModel = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
     }
 
