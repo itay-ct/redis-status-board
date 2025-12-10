@@ -1,5 +1,4 @@
 const { createClient } = require('redis');
-const { pipeline } = require('@xenova/transformers');
 const fs = require('fs');
 
 //==============================================================================
@@ -62,7 +61,22 @@ const DEFAULT_ICON = 'circle';
 let embeddingModel = null;
 
 async function searchBestIcon(statusMessage, prefix) {
-// TODO
+  if (!statusMessage || !statusMessage.trim()) {
+    return DEFAULT_ICON;
+  }
+
+  try {
+    if (!embeddingModel) {
+       const { pipeline } = await import('@xenova/transformers');
+      embeddingModel = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    }
+
+    // TODO
+  } catch (err) {
+    console.error('Icon search failed:', err.message);
+  }
+
+  return DEFAULT_ICON;
 }
 
 //==============================================================================
