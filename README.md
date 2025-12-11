@@ -17,16 +17,6 @@ The codebase is structured for educational purposes with clear separation betwee
 2. **Business Logic** (`server.js`): Application-specific logic
 3. **Frontend** (`public/index.html`): User interface and real-time features
 
-```bash
-# Install dependencies
-npm install
-
-# Start the server
-node server.js
-```
-
-The app will be available at `http://localhost:3000`
-
 ## 🎓 Workshop Guide
 
 ### Prerequisites
@@ -42,9 +32,18 @@ Before starting the workshop, make sure you have:
    - **GitHub Codespaces**: <a href="https://github.com/codespaces/new/itay-ct/redis-status-board"><img src="https://github.com/codespaces/badge.svg" height="20" /></a>
    - **Local IDE** with Node.js v14+ installed
 
-3. **This repository** cloned and dependencies installed (`npm install`)
+3. **This repository** cloned and dependencies installed
+```bash
+# Install dependencies
+npm install
 
-4. **RedisInsight** Will be used to connect, visualize data and run commands directly in Redis
+# Start the server
+node server.js
+```
+
+The app will be available at `http://localhost:3000`
+
+4. **[RedisInsight](https://redis.io/insight/)** Will be used to connect, visualize data and run commands directly in Redis
 
 **Ready to build this project step-by-step?**
 
