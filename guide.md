@@ -11,7 +11,7 @@ In this hands-on workshop, you'll build a **real-time team status dashboard** wh
 <details open>
 <summary><h2 style="display: inline;">Workshop Overview</h2></summary>
 
-All participants share a **single Redis cluster** (connection details will be provided). Each participant gets their own username and password to connect.
+All participants share a **single Redis database** (connection details will be provided). Each participant gets their own username and password to connect.
 
 ### Understanding Your Redis Namespace
 
@@ -153,6 +153,7 @@ async function disconnect() {
 3. Click "Connect"
 4. You should see: **"✅ Connected! PONG received"**
 5. The UI should show your username and the status controls
+6. If you log in, but see additional error - you can ignore it for now. We will fix it in the next step.
 
 ### Notes
 
@@ -195,7 +196,7 @@ Locate **STEP 2** in `redis-dal.js`. You'll implement two functions:
 
 This function should:
 1. Build the key name: `status:${prefix}:${username}`
-2. Create a hash object with `status` and `message` fields
+2. Create a hash object with `status` and `message` fields (it is stored in statusData object as statusData.status and statusData.message)
 3. Use `HSET` to save the hash to Redis
 
 **Redis Command:** [`HSET`](https://redis.io/docs/latest/commands/hset/)
@@ -223,7 +224,7 @@ async function updateStatus(username, prefix, statusData) {
 This function should:
 1. Build the key name: `status:${prefix}:${username}`
 2. Use `HGETALL` to retrieve all fields from the hash
-3. Return an object with `status`, `message`, and `icon` (or `null` if key doesn't exist)
+3. Return an object with `status`, `message`
 
 **Redis Command:** [`HGETALL`](https://redis.io/docs/latest/commands/hgetall/)
 
@@ -260,6 +261,7 @@ async function getStatus(username, prefix) {
 6. Click on the key to see the hash fields:
    - `status`: `green` (or `red`/`purple`)
    - `message`: `Working on Redis workshop`
+7. If you see your status, but the UI shows an additional error - you can ignore it for now. We will fix it in the next step.
 
 **Try it:** Change your status or message in the UI and watch the hash update in RedisInsight!
 
@@ -344,6 +346,7 @@ async function getAllStatuses() {
 2. You should see a table with **all participants** and their statuses
 3. Ask a friend to update their status
 4. Refresh your page - you should see their update!
+5. The map is still empty, that's fine,we'll fix that in the next steps.
 
 **What you'll see:**
 - Username column
@@ -511,35 +514,25 @@ We'll use a **Python notebook** to generate embeddings and load them into Redis.
 
 1. **Open the notebook:** [Icon Loader Notebook](https://colab.research.google.com/github/itay-ct/IconLoader/blob/main/IconLoader.ipynb)
 
-2. **⛔ CRITICAL: Modify Step 1 BEFORE running anything!**
+2. **Run step 1 in the notebook and provide input**
+   - In case you see a warning "this notebook was not authored by google", you can ignore it by pressing "Run Anyway".
+   - When asked in the next step, provide **your prefix**, as well as your **username**, **password** and **redisurl:port**
 
-   In the first code cell, change the index name and key prefix to include **your prefix**:
-
-   ```python
-   # If your username is redisboard-a, use prefix 'a'
-   INDEX_NAME = "a_lucide_icon_index"
-   KEY_PREFIX = "a:lucide:icon:"
-   ```
-
-   **Why?** This prevents collisions with other participants. Each user needs their own icon index!
-
-3. **Run Step 1:** Click the play button on the first cell
-
-4. **Enter your Redis connection string** when prompted (Step 2):
-   ```
-   redis://<username>:<password>@<host>:<port>
-   ```
-
-5. **Optional - Customize icons (Step 4):**
-   - You can use any icon from the [Lucide icon library](https://lucide.dev/icons/) (1000+ icons available!)
+5. **Load icons (Step 4 in the notebook):**
+   
+   **Option A - Use Custom Icons:**
+   - Browse the [Lucide icon library](https://lucide.dev/icons/) (1000+ icons available!)
    - Download the [default icon set](https://raw.githubusercontent.com/itay-ct/IconLoader/refs/heads/main/icons.txt) and modify it with your preferred icons
    - Upload your customized `icons.txt` file when prompted in Step 4 of the notebook
-   - Or just click "Cancel" to use the default icon set
+   
+   **Option B - Use Default Icons:**
+   - Simply click "Cancel" when prompted to upload a file in Step 4
+   - This will use the pre-configured default icon set
 
-6. **Run all remaining cells** to load the icons
+6. **Run all remaining cells** to load the icons, read through the instructions and output. (If you removed some of the default icons then some tests might fail)
 
 7. **Verify in RedisInsight:**
-   - You should see keys like `a:lucide:icon:coffee`, `a:lucide:icon:calendar`, etc.
+   - You should see keys like `a:lucide:icon:01KC6V4NA4HHZS4AKF6016JYHV`, `a:lucide:icon:01KC6V4NA4HHZS4AKF6016JYHW`, etc.
    - Each key is a hash with fields: `name`, `description`, `embedding`
 
 #### Part B: Implement Vector Search in Node.js
@@ -666,7 +659,7 @@ async function updateStatus(username, prefix, statusData) {
 
 The final feature: **Show users on a map!** 🗺️
 
-In this step, you'll implement geospatial search using **Redis Query Engine** to find all users with locations inside Israel's boundaries.
+In this step, you'll implement geospatial search using **Redis Query Engine** to find all users with locations inside the country boundaries.
 
 **What you'll learn:**
 - **GEOSHAPE**: Redis field type for storing geographic shapes
@@ -700,7 +693,7 @@ We need to create an index that can search status data by location.
 ```redis
 FT.CREATE a_status_index
   ON HASH
-  PREFIX 1 status:a:
+  PREFIX 1 status:
   SCHEMA
     status TAG
     message TEXT
@@ -709,8 +702,9 @@ FT.CREATE a_status_index
 ```
 
 **⚠️ Important:** Replace `a` with your prefix!
-- User `a` creates `a_status_index` with prefix `status:a:`
-- User `b` creates `b_status_index` with prefix `status:b:`
+- User `a` creates `a_status_index`
+- User `b` creates `b_status_index`
+- etc...
 
 **What this does:**
 - Creates an index named `a_status_index`
@@ -761,7 +755,7 @@ async function updateStatus(username, prefix, statusData) {
 Locate **STEP 6** in `redis-dal.js` and implement `getStatusesWithLocation()`:
 
 **Algorithm:**
-1. Load the Israel boundary from `il.json`
+1. Load the country boundary from `<country-code>.json` replace `<country-code>` with your country code
 2. Convert GeoJSON to WKT POLYGON format
 3. Query Redis using `FT.SEARCH` with `@location:[WITHIN $shape]`
 4. Return users whose location is inside Israel
@@ -772,38 +766,33 @@ Locate **STEP 6** in `redis-dal.js` and implement `getStatusesWithLocation()`:
 <summary>⚠️ <strong>Spoiler Alert</strong> - Show Solution</summary>
 
 ```javascript
-async function getStatusesWithLocation() {
+async function getStatusesWithLocation(prefix) {
   try {
-    // Load Israel boundary
-    const geoJson = JSON.parse(fs.readFileSync('il.json', 'utf8'));
-    const coordinates = geoJson.features[0].geometry.coordinates[0];
-
-    // Convert to WKT POLYGON
-    const wktCoords = coordinates.map(coord => `${coord[0]} ${coord[1]}`).join(', ');
-    const wktPolygon = `POLYGON((${wktCoords}))`;
-
-    // Search Redis
-    const results = await client.ft.search(
-      `${extractPrefixFromClient()}_status_index`,
+    const geojson = JSON.parse(fs.readFileSync('./il.json', 'utf8'));
+    const coords = geojson.features[0].geometry.coordinates[0];
+    const wktCoords = coords.map(([lon, lat]) => `${lon} ${lat}`).join(', ');
+    const israelWKT = `POLYGON((${wktCoords}))`;
+    
+    const searchResults = await client.ft.search(
+      `${prefix}_status_index`,
       '@location:[WITHIN $shape]',
       {
-        PARAMS: {
-          shape: wktPolygon
-        },
+        PARAMS: { shape: israelWKT },
+        RETURN: ['status', 'message', 'icon', 'location'],
+        LIMIT: { from: 0, size: 10000 },
         DIALECT: 3
       }
     );
 
-    // Parse results
-    return results.documents.map(doc => {
+    return searchResults.documents.map(doc => {
       const result = {
+        key: doc.id,
         username: doc.id.split(':').slice(2).join(':'),
         status: doc.value.status || 'green',
         message: doc.value.message || '',
-        icon: doc.value.icon || 'circle'
+        icon: doc.value.icon || DEFAULT_ICON
       };
 
-      // Extract lat/lon from WKT POINT
       if (doc.value.location) {
         const match = doc.value.location.match(/POINT\(([^ ]+) ([^ ]+)\)/);
         if (match) {
@@ -820,15 +809,6 @@ async function getStatusesWithLocation() {
     }
     throw err;
   }
-}
-```
-
-**Helper function** to extract prefix from client (add this if needed):
-```javascript
-function extractPrefixFromClient() {
-  // Extract prefix from username (e.g., redisboard-a -> a)
-  const username = client.options.username || '';
-  return username.replace(/^redisboard-/, '');
 }
 ```
 
