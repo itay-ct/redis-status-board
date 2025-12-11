@@ -73,6 +73,7 @@ Before starting the workshop, make sure you have:
    - Password
 
 2. ✅ **Node.js** installed (v14 or higher)
+Alternatively - [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new/itay-ct/redis-status-board)
 
 3. ✅ **This repository** cloned and dependencies installed (`npm install`)
 
