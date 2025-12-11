@@ -722,6 +722,9 @@ Unlike SCAN (which iterates through all keys), Redis Query Engine maintains an *
 
 Update your `updateStatus()` function to save locations in WKT POINT format:
 
+<details>
+<summary>⚠️ <strong>Spoiler Alert</strong> - Show Updated updateStatus()</summary>
+
 ```javascript
 async function updateStatus(username, prefix, statusData) {
   const key = `status:${prefix}:${username}`;
@@ -745,6 +748,8 @@ async function updateStatus(username, prefix, statusData) {
   await client.hSet(key, value);
 }
 ```
+
+</details>
 
 **WKT Format:**
 - `POINT(longitude latitude)` - Note: longitude first, then latitude!
