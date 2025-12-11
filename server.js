@@ -11,6 +11,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const sseClients = new Set();
+let cachedPrefix = null; // Cache the prefix globally
 
 // ============================================================================
 // BUSINESS LOGIC LAYER
@@ -21,7 +22,9 @@ const sseClients = new Set();
  * Example: redisboard-a -> a, redisboard-b -> b
  */
 function extractPrefix(username) {
-  return username.replace(/^redisboard-/, '');
+  const prefix = username.replace(/^redisboard-/, '');
+  cachedPrefix = prefix; // Cache it globally
+  return prefix;
 }
 
 /**
@@ -96,12 +99,16 @@ app.post('/api/list-users', async (req, res) => {
 
 /**
  * POST /api/users-on-map
- * Returns users with valid locations in Israel using Redis Query Engine GEO aggregation.
+ * Returns users with valid locations in the country using Redis Query Engine GEO aggregation.
  */
 app.post('/api/users-on-map', async (req, res) => {
   try {
-    const users = await redis.getStatusesWithLocation();
-    res.json({ ok: true, users });
+    if (!cachedPrefix) {
+      return res.status(400).json({ ok: false, error: 'No connection established. Connect first.' });
+    }
+
+    const usersWithLocation = await redis.getStatusesWithLocation(cachedPrefix);
+    res.json({ ok: true, users: usersWithLocation });
   } catch (err) {
     console.error('users-on-map error:', err.message);
     res.status(400).json({ ok: false, error: err.message });

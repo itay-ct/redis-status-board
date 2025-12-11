@@ -81,6 +81,8 @@ Before starting the workshop, make sure you have:
 
 3. **This repository** cloned and dependencies installed (`npm install`)
 
+4. **RedisInsight** Will be used to connect, visualize data and run commands directly in Redis
+
 **Ready to build this project step-by-step?**
 
 👉 **[Start the Workshop Guide](guide.md)**
