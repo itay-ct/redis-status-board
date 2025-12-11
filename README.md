@@ -67,19 +67,19 @@ The app will be available at `http://localhost:3000`
 
 Before starting the workshop, make sure you have:
 
-1. ✅ **Redis account** with credentials:
+1. **Redis account** with credentials:
    - Redis URL (format: `redis://host:port` or `rediss://host:port`)
    - Username (e.g., `redisboard-a`)
    - Password
 
-2. 🚀 **Open in GitHub Codespaces (Instant Setup)**  
+2. **Open in GitHub Codespaces (Instant Setup)**  
    <a href="https://github.com/codespaces/new/itay-ct/redis-status-board">
      <img src="https://github.com/codespaces/badge.svg" height="20" />
    </a>
    
-   Alternatively - ✅ **Node.js** installed locally (v14 or higher)
+   Alternatively you can run this locally with - **Node.js** installed locally (v14 or higher)
 
-3. ✅ **This repository** cloned and dependencies installed (`npm install`)
+3. **This repository** cloned and dependencies installed (`npm install`)
 
 **Ready to build this project step-by-step?**
 
