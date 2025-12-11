@@ -153,18 +153,15 @@ async function searchBestIcon(statusMessage, prefix) {
 // STEP 6 - MAP SEARCH
 //==============================================================================
 
-function geojsonToWKT(geojsonPath) {
-  const geojson = JSON.parse(fs.readFileSync(geojsonPath, 'utf8'));
-  const coords = geojson.features[0].geometry.coordinates[0];
-  const wktCoords = coords.map(([lon, lat]) => `${lon} ${lat}`).join(', ');
-  return `POLYGON((${wktCoords}))`;
-}
-
-async function getStatusesWithLocation() {
+async function getStatusesWithLocation(prefix) {
   try {
-    const israelWKT = geojsonToWKT('./il.json');
+    const geojson = JSON.parse(fs.readFileSync('./il.json', 'utf8'));
+    const coords = geojson.features[0].geometry.coordinates[0];
+    const wktCoords = coords.map(([lon, lat]) => `${lon} ${lat}`).join(', ');
+    const israelWKT = `POLYGON((${wktCoords}))`;
+    
     const searchResults = await client.ft.search(
-      'status_index',
+      `${prefix}_status_index`,
       '@location:[WITHIN $shape]',
       {
         PARAMS: { shape: israelWKT },
@@ -192,7 +189,7 @@ async function getStatusesWithLocation() {
       }
 
       return result;
-    })
+    });
   } catch (err) {
     if (err.message && err.message.includes('no such index')) {
       return [];
