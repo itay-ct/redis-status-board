@@ -72,6 +72,7 @@ async function searchBestIcon(statusMessage, prefix) {
     }
 
     // TODO
+    
   } catch (err) {
     console.error('Icon search failed:', err.message);
   }
