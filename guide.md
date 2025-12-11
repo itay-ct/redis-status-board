@@ -923,11 +923,6 @@ Track status changes over time and show a timeline.
 
 **Hint:** Use Redis Sorted Sets with timestamps as scores
 
-### 6. **Presence Detection**
-Show who's currently online vs offline.
-
-**Hint:** Use Redis keys with TTL that get refreshed on heartbeat
-
 </details>
 
 ---
