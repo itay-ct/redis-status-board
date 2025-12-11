@@ -13,23 +13,6 @@ A real-time team status dashboard built with Node.js, Express, and Redis. Team m
 - **ACL Support**: Multi-user isolation with Redis ACL permissions
 - **Dark Mode UI**: Modern, clean interface with smooth animations
 
-## 🏗️ Architecture
-
-### Key Pattern: `status:{prefix}:{username}`
-
-- User `redisboard-a` → Key: `status:a:redisboard-a`
-- User `redisboard-b` → Key: `status:b:redisboard-b`
-
-### Data Structure (Redis Hash)
-
-```
-HGETALL status:a:redisboard-a
-status: "green"
-message: "Working on feature X"
-icon: "laptop"
-location: "POINT(34.7818 32.0853)"
-```
-
 ## 🛠️ Development
 
 The codebase is structured for educational purposes with clear separation between:
