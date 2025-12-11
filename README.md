@@ -47,6 +47,6 @@ The app will be available at `http://localhost:3000`
 
 **Ready to build this project step-by-step?**
 
-👉 **[Start the Workshop Guide](guide.md)**
+# 👉 **[Start the Workshop Guide](guide.md)**
 
 The workshop guide will walk you through implementing all Redis operations from scratch!
