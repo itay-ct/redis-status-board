@@ -4,14 +4,10 @@ A real-time team status dashboard built with Node.js, Express, and Redis. Team m
 
 ## ✨ Features
 
-- **Real-time Updates**: Server-Sent Events (SSE) for instant status notifications
-- **Redis Pub/Sub**: Broadcasts status changes to all connected users
-- **Persistent Sessions**: Auto-login with localStorage credential caching
 - **Redis Hashes**: Native Redis hash storage for structured data
+- **Redis Pub/Sub**: Broadcasts status changes to all connected users
 - **Vector Search**: AI-powered icon selection using semantic embeddings
 - **Geospatial Queries**: Map-based location tracking with Redis GEOSHAPE
-- **ACL Support**: Multi-user isolation with Redis ACL permissions
-- **Dark Mode UI**: Modern, clean interface with smooth animations
 
 ## 🛠️ Development
 
