@@ -88,7 +88,3 @@ Before starting the workshop, make sure you have:
 👉 **[Start the Workshop Guide](guide.md)**
 
 The workshop guide will walk you through implementing all Redis operations from scratch!
-
-## 📝 License
-
-MIT
