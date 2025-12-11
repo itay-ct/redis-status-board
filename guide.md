@@ -36,11 +36,6 @@ The important part: **`%R~* %W~a:* %W~status:a:*`**
 
 ### Getting Started
 
-**Prerequisites:**
-- Node.js 18+ installed
-- A code editor (VS Code recommended)
-- [RedisInsight](https://redis.io/insight/) (optional but highly recommended for visualizing data)
-
 **Setup:**
 1. Clone the repository
 2. Run `npm install`
