@@ -703,7 +703,7 @@ FT.CREATE a_status_index
 
 **What this does:**
 - Creates an index named `a_status_index`
-- Indexes all hash keys starting with `status:a:`
+- Indexes all hash keys starting with `status:`
 - Defines searchable fields:
   - `status`: TAG (exact match, e.g., "green", "red")
   - `message`: TEXT (full-text search)
