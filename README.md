@@ -30,19 +30,6 @@ icon: "laptop"
 location: "POINT(34.7818 32.0853)"
 ```
 
-### Clean Separation of Concerns
-
-- **`redis-dal.js`**: Core Redis operations (data access layer)
-- **`server.js`**: Business logic and API endpoints
-- **`public/index.html`**: Frontend UI and real-time updates
-
-## 📦 Dependencies
-
-- **express**: Web server framework
-- **cors**: Cross-Origin Resource Sharing
-- **redis**: Redis client for Node.js
-- **@xenova/transformers**: AI embeddings for vector search
-
 ## 🛠️ Development
 
 The codebase is structured for educational purposes with clear separation between:
