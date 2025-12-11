@@ -38,12 +38,9 @@ Before starting the workshop, make sure you have:
    - Username (e.g., `redisboard-a`)
    - Password
 
-2. **Open in GitHub Codespaces (Instant Setup)**  
-   <a href="https://github.com/codespaces/new/itay-ct/redis-status-board">
-     <img src="https://github.com/codespaces/badge.svg" height="20" />
-   </a>
-   
-   Alternatively you can run this locally with - **Node.js** installed locally (v14 or higher)
+2. **Development Environment** (choose one):
+   - **GitHub Codespaces**: <a href="https://github.com/codespaces/new/itay-ct/redis-status-board"><img src="https://github.com/codespaces/badge.svg" height="20" /></a>
+   - **Local IDE** with Node.js v14+ installed
 
 3. **This repository** cloned and dependencies installed (`npm install`)
 
