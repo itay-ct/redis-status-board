@@ -26,13 +26,14 @@ Redis uses a **key-value** structure. To prevent conflicts between users, each p
 Each user has been configured with granular permissions:
 
 ```
-+@read +@write +@connection +PUBLISH +SUBSCRIBE +FT.SEARCH +FT._LIST +FT.INFO +FT.CREATE -@dangerous %R~* %W~a:* %W~status:a:*
++@read +@write +@connection +PUBLISH +SUBSCRIBE +FT.SEARCH +FT._LIST +FT.INFO +FT.CREATE -@dangerous %W~a:* %W~status:a:* %R~a:* %R~status:*
 ```
 
-The important part: **`%R~* %W~a:* %W~status:a:*`**
-- `%R~*` - You can **read** from any key
-- `%W~a:*` - You can **write** to keys starting with `a:`
-- `%W~status:a:*` - You can **write** to status keys like `status:a:*`
+The important part: **`%W~a:* %W~status:a:* %R~a:* %R~status:*`**
+- `%R~*` `%W~a:*` - You can **read** and **write** from any key under your letter as prefix `a:` (if your letter prefix is b, you can read and write to b:*)
+- `%R~status:*` - You can **read** any key with a prefix `status:`
+- `%W~status:a:*` - You can **write** to status keys like `status:a:*` when a is your letter prefix (if your letter prefix is b, you can write to status:b:*)
+
 
 ### Getting Started
 
