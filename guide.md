@@ -781,7 +781,7 @@ async function getStatusesWithLocation(prefix) {
         PARAMS: { shape: israelWKT },
         RETURN: ['status', 'message', 'icon', 'location'],
         LIMIT: { from: 0, size: 10000 },
-        DIALECT: 3
+        DIALECT: 2
       }
     );
 
@@ -831,7 +831,7 @@ async function getStatusesWithLocation(prefix) {
 
 ### Notes
 
-- **DIALECT 3**: Required for GEOSHAPE polygon queries
+- **DIALECT 2**: Required for GEOSHAPE polygon queries
 - **WKT vs GeoJSON**: Redis uses WKT format, but many tools export GeoJSON - you need to convert
 - **SPHERICAL**: Tells Redis to use spherical (Earth) coordinates instead of flat Cartesian
 - **Performance**: Geospatial queries are very fast - Redis can search millions of points in milliseconds
