@@ -167,7 +167,7 @@ async function getStatusesWithLocation(prefix) {
         PARAMS: { shape: israelWKT },
         RETURN: ['status', 'message', 'icon', 'location'],
         LIMIT: { from: 0, size: 10000 },
-        DIALECT: 3
+        DIALECT: 2
       }
     );
 
